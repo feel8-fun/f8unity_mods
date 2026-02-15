@@ -1,0 +1,115 @@
+# F8HSceneAnimatorStreamer Setup
+
+## Overview
+
+This repository now has a standalone toolchain for `F8HSceneAnimatorStreamer`:
+
+- Independent solution: `F8UnityMods.sln`
+- Build/package/install script: `tools/build.py`
+- Game helper (detect/install/diagnose): `tools/game_setup.py`
+
+`lovemachine_src/` is treated as legacy/reference source and is not part of the new solution.
+
+## Build
+
+```bash
+python tools/build.py build
+```
+
+## Package
+
+```bash
+python tools/build.py package
+```
+
+Output zip:
+
+`dist/F8HSceneAnimatorStreamer/F8HSceneAnimatorStreamer.zip`
+
+## Local install into a game
+
+```bash
+python tools/build.py install-local --game "C:\Games\MyUnityGame\MyUnityGame.exe"
+```
+
+## Detect game metadata
+
+```bash
+python tools/game_setup.py detect --target "C:\Games\MyUnityGame"
+```
+
+Returns JSON fields:
+
+- `game_root`
+- `exe_path`
+- `unity_version`
+- `backend` (`mono|il2cpp|unknown`)
+- `arch` (`x86|x64|unknown`)
+- `process_name`
+- `game_type` (`hs2|kks|le|com3d2|unknown`)
+- `profile_id` (`HS2|KKS|LE|COM3D2|""`)
+- `has_bepinex`
+- `bepinex_variant`
+- `bepinex_version`
+
+## Dry-run setup diagnosis
+
+```bash
+python tools/game_setup.py diagnose --target "C:\Games\MyUnityGame" --offline
+```
+
+## Full setup
+
+```bash
+python tools/game_setup.py install --target "C:\Games\MyUnityGame"
+```
+
+Behavior:
+
+1. Detect backend/arch/unity version.
+2. Detect supported game type/profile from process name (`HS2/KKS/LE/COM3D2` when matched).
+3. Install matching BepInEx if missing.
+4. Install exporter plugin from local build output, automatically selecting `Mono` or `IL2CPP` build.
+5. Install exporter config at `BepInEx/config/com.feel8.f8-hscene-animator-streamer.cfg`
+   with profile-aware hook defaults (unless a custom unmanaged config already exists).
+6. Install single active profile at
+   `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json`:
+   - Known game: installs matching built-in template (`HS2/KKS/LE/COM3D2`).
+   - Unknown game: installs a minimal editable `CUSTOM` template.
+7. Install RuntimeUnityEditor release matching BepInEx major line.
+8. Install CinematicUnityExplorer release matching BepInEx variant.
+
+Runtime profile loading is single-file mode:
+
+- Only `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` is loaded.
+- Legacy `profiles/*.json` files are ignored by runtime.
+
+Runtime capture mode is hook-only:
+
+- Streaming starts on configured `h_start` hooks and stops on `h_end`.
+- No fallback discovery, metadata stream, sample stream, control UDP, or hotkey gating.
+- Skeleton packets are emitted on the configured `SkeletonHost/SkeletonPort` only.
+
+Live profile editing (no game restart):
+
+- Edit `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` directly.
+- Runtime polls config/profile changes and auto reloads hooks/profile.
+
+Useful options:
+
+- `--force-reinstall`: replace mismatched existing BepInEx after backup.
+- `--skip-rue`: skip RuntimeUnityEditor install.
+- `--skip-cue`: skip CinematicUnityExplorer install.
+- `--skip-exporter`: skip exporter install.
+- `--offline`: use cached artifacts only.
+
+## Common errors
+
+- `backend is unknown`
+  - Game directory did not match a standard Unity layout (`<GameName>_Data` + Mono/IL2CPP markers).
+- `architecture is unknown`
+  - PE header of exe was not x86/x64.
+- `BepInEx variant mismatches backend`
+  - Use `--force-reinstall` to backup and replace with correct variant.
+- `offline mode but cache missing`
+  - Run once without `--offline` to populate cache.

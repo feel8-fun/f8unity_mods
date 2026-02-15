@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>F8HSceneAnimatorStreamer.IL2CPP</AssemblyName>
+    <RootNamespace>UnityRealtimeSkeletonExporter</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <OutputPath>..\bin\F8HSceneAnimatorStreamer.IL2CPP\BepInEx\plugins\F8HSceneAnimatorStreamer\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\UnityRealtimeSkeletonExporter\**\*.cs"
+             Exclude="..\UnityRealtimeSkeletonExporter\obj\**\*.cs;..\UnityRealtimeSkeletonExporter\NonPortable\*.cs"
+             LinkBase="Included" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.664" ExcludeAssets="runtime" />
+    <PackageReference Include="HarmonyX" Version="2.10.1" ExcludeAssets="runtime" />
+    <PackageReference Include="LitJson" Version="0.19.0" />
+    <PackageReference Include="UnityEngine.Core" Version="5.6.0" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

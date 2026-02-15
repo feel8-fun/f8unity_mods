@@ -1,0 +1,29 @@
+﻿{
+  "id": "LE",
+  "fullName": "Last Evil",
+  "version": "1.0",
+  "processNames": ["LastEvil"],
+  "hooksStart": ["EventSceneFramework, Assembly-CSharp:Init", "AnimCombineEventer, Assembly-CSharp:Set"],
+  "hooksEnd": ["EventSceneFramework, Assembly-CSharp:OnClickEnd"],
+  "hooksObserve": [],
+  "controllerType": "Animation",
+  "controllerExpr": "instance._animation",
+  "femaleRootsExpr": "path exact ${instance.name}/Root/Entities/Succubus ?? path exact ${instance.name}/Root/Entities/Female ?? path exact ${instance.name}/Succubus ?? path exact ${instance.name}/Female",
+  "malePenisBaseExpr": "",
+  "maxFemaleCount": 1,
+  "useRegex": true,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"Bip_Clitoris2","required":false},
+    {"kind":"Anus","pathOrName":"Bip_Ass7_2","required":false},
+    {"kind":"Mouth","pathOrName":"DUMMY_HEAD","required":false},
+    {"kind":"LeftHand","pathOrName":"Bip_FingerL2_4","required":false},
+    {"kind":"RightHand","pathOrName":"Bip_FingerR2_4","required":false},
+    {"kind":"LeftFoot","pathOrName":"Bip_FootL","required":false},
+    {"kind":"RightFoot","pathOrName":"Bip_FootR","required":false}
+  ]
+}

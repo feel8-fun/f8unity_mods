@@ -1,0 +1,29 @@
+{
+  "bepinex_release_repo": "BepInEx/BepInEx",
+  "bepinex_be_index_url": "https://builds.bepinex.dev/projects/bepinex_be",
+  "rue_release_repo": "ManlyMarco/RuntimeUnityEditor",
+  "cue_release_repo": "originalnicodr/CinematicUnityExplorer",
+  "config_manager_release_repo": "BepInEx/BepInEx.ConfigurationManager",
+  "universal_unity_demosaics_release_repo": "ManlyMarco/UniversalUnityDemosaics",
+  "cache_dir": ".cache/unity_exporter_helper",
+  "timeout_sec": 30,
+  "asset_regex_overrides": {
+    "bepinex_mono_win_x64": "BepInEx_win_x64_.+\\.zip$",
+    "bepinex_mono_win_x86": "BepInEx_win_x86_.+\\.zip$",
+    "bepinex_be_il2cpp_win_x64": "BepInEx-Unity\\.IL2CPP-win-x64-.+\\.zip$|BepInEx_UnityIL2CPP_x64_.+\\.zip$",
+    "bepinex_be_il2cpp_win_x86": "BepInEx-Unity\\.IL2CPP-win-x86-.+\\.zip$|BepInEx_UnityIL2CPP_x86_.+\\.zip$",
+    "rue_bepin5": "RuntimeUnityEditor\\.Bepin5_.+\\.zip$",
+    "rue_bepin6_il2cpp": "RuntimeUnityEditor\\.Bepin6\\.IL2CPP_.+\\.zip$",
+    "rue_bepin6_any": "RuntimeUnityEditor\\.Bepin6.+\\.zip$",
+    "cue_bepin6_unity_il2cpp": "CinematicUnityExplorer\\.BepInEx\\.Unity\\.IL2CPP(?:\\.CoreCLR)?\\.zip$",
+    "cue_bepin6_il2cpp": "CinematicUnityExplorer\\.BepInEx\\.IL2CPP(?:\\.CoreCLR)?\\.zip$",
+    "cue_bepin6_unity_mono": "CinematicUnityExplorer\\.BepInEx6\\.Unity\\.Mono\\.zip$",
+    "cue_bepin6_mono": "CinematicUnityExplorer\\.BepInEx6\\.Mono\\.zip$",
+    "cue_bepin5_mono": "CinematicUnityExplorer\\.BepInEx5\\.Mono\\.zip$",
+    "config_manager_bepin5": "BepInEx\\.ConfigurationManager_BepInEx5_.+\\.zip$",
+    "config_manager_il2cpp": "BepInEx\\.ConfigurationManager_IL2CPP_.+\\.zip$",
+    "universal_unity_demosaics_bepin5": "UniversalUnityDemosaics_BepInEx5_.+\\.zip$",
+    "universal_unity_demosaics_bepin6_il2cpp_net6": "UniversalUnityDemosaics_BepInEx6_IL2CPP_net6_.+\\.zip$",
+    "universal_unity_demosaics_bepin6_il2cpp_pre1": "UniversalUnityDemosaics_BepInEx6_IL2CPP_pre1_.+\\.zip$"
+  }
+}

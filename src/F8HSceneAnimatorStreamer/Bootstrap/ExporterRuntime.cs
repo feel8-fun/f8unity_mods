@@ -1,0 +1,247 @@
+using System;
+using System.IO;
+using F8HSceneAnimatorStreamer.Common;
+using F8HSceneAnimatorStreamer.Config;
+using F8HSceneAnimatorStreamer.Discovery;
+using F8HSceneAnimatorStreamer.Protocol;
+using F8HSceneAnimatorStreamer.Profiles;
+using F8HSceneAnimatorStreamer.Sampling;
+using F8HSceneAnimatorStreamer.Transport;
+using F8HSceneAnimatorStreamer.Triggering;
+using UnityEngine;
+using CharacterModel = F8HSceneAnimatorStreamer.Discovery.CharacterInfo;
+
+namespace F8HSceneAnimatorStreamer.Bootstrap
+{
+    internal sealed class ExporterRuntime : MonoBehaviour
+    {
+        private HookTriggerSource _hookSource;
+        private ProfileResolver _profileResolver;
+        private ICharacterProvider _characterProvider;
+        private IKeypointSampler _keypointSampler;
+        private IControllerStateReader _controllerReader;
+
+        private UdpDatagramSender _skeletonSender;
+        private SkeletonPacketEncoder _encoder;
+
+        private bool _hookActive;
+        private float _nextFrameAt;
+        private ulong _frameId;
+
+        private float _nextHotReloadAt;
+        private string _profilePath = string.Empty;
+        private long _lastConfigWriteTicks = -1;
+        private long _lastProfileWriteTicks = -1;
+        private string _activeHost = string.Empty;
+        private int _activePort = -1;
+
+        private void Start()
+        {
+            _hookSource = GetComponent<HookTriggerSource>();
+            _profileResolver = GetComponent<ProfileResolver>();
+            _characterProvider = GetComponent<ProfileCharacterProvider>();
+            _keypointSampler = GetComponent<KeypointSampler>();
+            _controllerReader = GetComponent<ControllerStateRouter>();
+            _encoder = new SkeletonPacketEncoder();
+
+            string baseDirectory = Path.GetDirectoryName(typeof(ProfileResolver).Assembly.Location) ?? string.Empty;
+            _profilePath = Path.Combine(baseDirectory, "profile.json");
+            _lastConfigWriteTicks = ReadWriteTicks(ExporterConfig.ConfigPath);
+            _lastProfileWriteTicks = ReadWriteTicks(_profilePath);
+
+            EnsureSkeletonSender();
+
+            if (_hookSource != null)
+            {
+                _hookSource.OnSignal += HandleTriggerSignal;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_hookSource != null)
+            {
+                _hookSource.OnSignal -= HandleTriggerSignal;
+            }
+
+            if (_skeletonSender != null)
+            {
+                _skeletonSender.Dispose();
+                _skeletonSender = null;
+            }
+        }
+
+        private void Update()
+        {
+            PollConfigAndProfileHotReload();
+        }
+
+        private void LateUpdate()
+        {
+            if (!_hookActive || _characterProvider == null || _keypointSampler == null || _skeletonSender == null)
+            {
+                return;
+            }
+
+            float interval = 1f / Mathf.Max(1, ExporterConfig.TargetFps.Value);
+            if (Time.unscaledTime < _nextFrameAt)
+            {
+                return;
+            }
+            _nextFrameAt = Mathf.Max(_nextFrameAt + interval, Time.unscaledTime + 0.0001f);
+
+            CharacterModel[] characters = _characterProvider.GetActiveCharacters();
+            if (characters.Length == 0)
+            {
+                return;
+            }
+
+            _frameId++;
+            long timestampMs = TimeUtil.NowMs();
+
+            for (int i = 0; i < characters.Length; i++)
+            {
+                CharacterModel character = characters[i];
+                BoneSample[] bones = _keypointSampler.SampleRealtime(character);
+                if (bones == null || bones.Length == 0)
+                {
+                    continue;
+                }
+
+                ControllerState state = default(ControllerState);
+                bool hasState = _controllerReader != null && _controllerReader.TryGetState(character, out state);
+                if (!hasState)
+                {
+                    state.PoseKey = "no_controller";
+                }
+
+                SendSkeletonPackets(character, bones, "unity.keypoints.realtime.v1", timestampMs, hasState, state);
+            }
+        }
+
+        private void HandleTriggerSignal(TriggerSignal signal)
+        {
+            if (signal == null || signal.Source != "hook")
+            {
+                return;
+            }
+
+            if (signal.Type == TriggerEventType.HStart)
+            {
+                _hookActive = true;
+                if (_characterProvider != null)
+                {
+                    _characterProvider.StartSession(signal.HookInstance, signal.Method);
+                }
+                return;
+            }
+
+            if (signal.Type == TriggerEventType.HEnd)
+            {
+                _hookActive = false;
+                if (_characterProvider != null)
+                {
+                    _characterProvider.EndSession(signal.Method);
+                }
+            }
+        }
+
+        private void PollConfigAndProfileHotReload()
+        {
+            if (Time.unscaledTime < _nextHotReloadAt)
+            {
+                return;
+            }
+            _nextHotReloadAt = Time.unscaledTime + 0.5f;
+
+            long configTicks = ReadWriteTicks(ExporterConfig.ConfigPath);
+            long profileTicks = ReadWriteTicks(_profilePath);
+            bool changed = configTicks != _lastConfigWriteTicks || profileTicks != _lastProfileWriteTicks;
+            if (!changed)
+            {
+                return;
+            }
+
+            _lastConfigWriteTicks = configTicks;
+            _lastProfileWriteTicks = profileTicks;
+
+            ExporterConfig.Reload();
+            if (_profileResolver != null)
+            {
+                _profileResolver.Reload();
+            }
+            if (_hookSource != null)
+            {
+                _hookSource.ReloadHooks();
+            }
+            EnsureSkeletonSender();
+        }
+
+        private void EnsureSkeletonSender()
+        {
+            string host = ExporterConfig.SkeletonHost.Value ?? "127.0.0.1";
+            int port = ExporterConfig.SkeletonPort.Value;
+            if (_skeletonSender != null
+                && string.Equals(_activeHost, host, StringComparison.OrdinalIgnoreCase)
+                && _activePort == port)
+            {
+                return;
+            }
+
+            if (_skeletonSender != null)
+            {
+                _skeletonSender.Dispose();
+                _skeletonSender = null;
+            }
+
+            _skeletonSender = new UdpDatagramSender(host, port);
+            _activeHost = host;
+            _activePort = port;
+        }
+
+        private static long ReadWriteTicks(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return -1;
+            }
+            try
+            {
+                return File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : -1;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        private void SendSkeletonPackets(
+            CharacterModel character,
+            BoneSample[] bones,
+            string schema,
+            long timestampMs,
+            bool hasAnimationContext,
+            ControllerState controllerState)
+        {
+            CharacterFrame frame = new CharacterFrame
+            {
+                FrameId = _frameId,
+                TimestampMs = timestampMs,
+                CharacterId = character.CharacterId,
+                CharacterName = character.CharacterName,
+                Bones = bones,
+                HasAnimationContext = hasAnimationContext,
+                NormalizedTime = controllerState.NormalizedTime,
+                LayerIndex = controllerState.LayerIndex,
+                ClipName = controllerState.ClipName,
+                PoseKey = controllerState.PoseKey
+            };
+
+            byte[][] packets = _encoder.EncodeChunks(frame, schema, ExporterConfig.MaxUdpPayloadBytes.Value);
+            for (int i = 0; i < packets.Length; i++)
+            {
+                _skeletonSender.Send(packets[i]);
+            }
+        }
+    }
+}

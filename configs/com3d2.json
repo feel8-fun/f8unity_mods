@@ -1,0 +1,34 @@
+﻿{
+  "id": "COM3D2",
+  "fullName": "Custom Order Maid 3D2",
+  "version": "1.0",
+  "processNames": ["COM3D2"],
+  "hooksStart": [
+    "YotogiPlayManager, Assembly-CSharp:UIStartup",
+    "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayMainStory",
+    "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayEveryday",
+    "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayVip"
+  ],
+  "hooksEnd": ["YotogiPlayManager, Assembly-CSharp:OnClickNext", "FreeModeInit, Assembly-CSharp:OnFinish"],
+  "hooksObserve": [],
+  "controllerType": "Animation",
+  "controllerExpr": "",
+  "femaleRootsExpr": "path exact __GameMain__/Character/Active/AllOffset children prefix Maid[ -> Offset[0]",
+  "malePenisBaseExpr": "path exact __GameMain__/Character/Active/AllOffset children prefix Man[ -> Offset[0] -> ManBip/ManBip Pelvis/chinkoCenter/tamabukuro",
+  "maxFemaleCount": 2,
+  "useRegex": true,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"Bip01/Bip01 Pelvis/_IK_vagina","required":false},
+    {"kind":"Anus","pathOrName":"Bip01/Bip01 Pelvis/Bip01 R Buttock","required":false},
+    {"kind":"Mouth","pathOrName":"MouthUp","required":false},
+    {"kind":"LeftHand","pathOrName":"Bip01/Bip01 Spine/Bip01 Spine0a/Bip01 Spine1/Bip01 Spine1a/Bip01 L Clavicle/Bip01 L UpperArm/Bip01 L Forearm/Bip01 L Hand","required":false},
+    {"kind":"RightHand","pathOrName":"Bip01/Bip01 Spine/Bip01 Spine0a/Bip01 Spine1/Bip01 Spine1a/Bip01 R Clavicle/Bip01 R UpperArm/Bip01 R Forearm/Bip01 R Hand","required":false},
+    {"kind":"LeftFoot","pathOrName":"Bip01/Bip01 Pelvis/Bip01 L Thigh/Bip01 L Calf/Bip01 L Foot/Bip01 L Toe0","required":false},
+    {"kind":"RightFoot","pathOrName":"Bip01/Bip01 Pelvis/Bip01 R Thigh/Bip01 R Calf/Bip01 R Foot/Bip01 R Toe0","required":false}
+  ]
+}

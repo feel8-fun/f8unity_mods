@@ -1,0 +1,29 @@
+﻿{
+  "id": "HS2",
+  "fullName": "Honey Select 2",
+  "version": "1.0",
+  "processNames": ["HoneySelect2", "HoneySelect2VR", "AI-Syoujyo"],
+  "hooksStart": ["HScene, Assembly-CSharp:SetStartVoice"],
+  "hooksEnd": ["HScene, Assembly-CSharp:EndProc"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "controllerExpr": "instance.GetFemales()[].animBody",
+  "femaleRootsExpr": "instance.GetFemales()[].objBodyBone",
+  "malePenisBaseExpr": "instance.GetMales()[].objBodyBone -> cm_J_dan_f_L",
+  "maxFemaleCount": 2,
+  "useRegex": true,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"cf_J_Kokan","required":false},
+    {"kind":"Anus","pathOrName":"k_f_ana_00","required":false},
+    {"kind":"Mouth","pathOrName":"cf_J_MouthCavity","required":false},
+    {"kind":"LeftHand","pathOrName":"cf_J_Hand_Wrist_s_L","required":false},
+    {"kind":"RightHand","pathOrName":"cf_J_Hand_Wrist_s_R","required":false},
+    {"kind":"LeftFoot","pathOrName":"cf_J_Toes01_R","required":false},
+    {"kind":"RightFoot","pathOrName":"cf_J_Toes01_L","required":false}
+  ]
+}

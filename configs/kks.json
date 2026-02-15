@@ -1,0 +1,29 @@
+﻿{
+  "id": "KKS",
+  "fullName": "Koikatu Sunshine",
+  "version": "1.0",
+  "processNames": ["KoikatuSunshine", "KoikatsuSunshine", "Koikatu", "Koikatsu Party"],
+  "hooksStart": ["HFlag, Assembly-CSharp:Start"],
+  "hooksEnd": ["HSprite, Assembly-CSharp:OnClickHSceneEnd", "HSprite, Assembly-CSharp:OnClickTrespassing"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "controllerExpr": "instance.lstHeroine[].chaCtrl.animBody",
+  "femaleRootsExpr": "instance.lstHeroine[].chaCtrl.objBodyBone",
+  "malePenisBaseExpr": "instance.player.chaCtrl.objBodyBone -> k_f_tamaL_00",
+  "maxFemaleCount": 2,
+  "useRegex": true,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"cf_n_pee","required":false},
+    {"kind":"Anus","pathOrName":"k_f_ana_00","required":false},
+    {"kind":"Mouth","pathOrName":"cf_J_MouthCavity","required":false},
+    {"kind":"LeftHand","pathOrName":"cf_j_index04_L","required":false},
+    {"kind":"RightHand","pathOrName":"cf_j_index04_R","required":false},
+    {"kind":"LeftFoot","pathOrName":"k_f_toeL_00","required":false},
+    {"kind":"RightFoot","pathOrName":"k_f_toeR_00","required":false}
+  ]
+}

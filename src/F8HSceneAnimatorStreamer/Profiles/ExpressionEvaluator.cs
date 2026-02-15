@@ -94,8 +94,7 @@ namespace F8HSceneAnimatorStreamer.Profiles
                 }
             }
 
-            GameObject global = GameObject.Find(pathOrName);
-            return global != null ? global.transform : null;
+            return null;
         }
 
         private object[] EvaluateSingle(object hookInstance, string expression)

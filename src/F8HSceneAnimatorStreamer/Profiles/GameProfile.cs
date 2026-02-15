@@ -10,10 +10,12 @@
         public string[] hooksEnd = new string[0];
         public string[] hooksObserve = new string[0];
         public string controllerType = "Animator";
-        public string controllerExpr = string.Empty;
+        public string femaleControllerExpr = string.Empty;
+        public string maleControllerExpr = string.Empty;
         public string femaleRootsExpr = string.Empty;
-        public string malePenisBaseExpr = string.Empty;
+        public string maleRootsExpr = string.Empty;
         public int maxFemaleCount = 1;
+        public int maxMaleCount = 1;
         public bool useRegex = true;
         public int poseLayer = 0;
         public string poseLayerName = string.Empty;

@@ -58,21 +58,48 @@ namespace F8HSceneAnimatorStreamer.Discovery
             }
 
             GameProfile profile = _resolver.ActiveProfile;
-            Transform[] roots = _evaluator.EvaluateTransforms(_hookInstance, profile.femaleRootsExpr);
-            object[] controllers = _evaluator.EvaluateObjects(_hookInstance, profile.controllerExpr);
-            Transform[] maleBases = _evaluator.EvaluateTransforms(_hookInstance, profile.malePenisBaseExpr);
+            var characters = new List<CharacterInfo>();
+            Transform[] femaleRoots = _evaluator.EvaluateTransforms(_hookInstance, profile.femaleRootsExpr);
+            object[] femaleControllers = _evaluator.EvaluateObjects(_hookInstance, profile.femaleControllerExpr);
+            BuildCharactersForRole(
+                profile,
+                CharacterRole.Female,
+                femaleRoots,
+                femaleControllers,
+                profile.maxFemaleCount,
+                characters);
 
+            Transform[] maleRoots = _evaluator.EvaluateTransforms(_hookInstance, profile.maleRootsExpr);
+            object[] maleControllers = _evaluator.EvaluateObjects(_hookInstance, profile.maleControllerExpr);
+            BuildCharactersForRole(
+                profile,
+                CharacterRole.Male,
+                maleRoots,
+                maleControllers,
+                profile.maxMaleCount,
+                characters);
+
+            return characters.ToArray();
+        }
+
+        private void BuildCharactersForRole(
+            GameProfile profile,
+            CharacterRole role,
+            Transform[] roots,
+            object[] controllers,
+            int maxByConfig,
+            IList<CharacterInfo> destination)
+        {
             int maxCount = Math.Max(roots.Length, controllers.Length);
-            if (profile.maxFemaleCount > 0)
+            if (maxByConfig > 0)
             {
-                maxCount = Math.Min(maxCount, profile.maxFemaleCount);
+                maxCount = Math.Min(maxCount, maxByConfig);
             }
             if (maxCount == 0)
             {
                 maxCount = roots.Length > 0 ? roots.Length : controllers.Length;
             }
 
-            var characters = new List<CharacterInfo>();
             for (int index = 0; index < maxCount; index++)
             {
                 Transform root = index < roots.Length ? roots[index] : null;
@@ -83,7 +110,7 @@ namespace F8HSceneAnimatorStreamer.Discovery
 
                 if (profile.GetControllerType() == ControllerType.Animator)
                 {
-                    animator = controllerObject as Animator;
+                    animator = ResolveAnimator(controllerObject);
                     if (animator == null && root != null)
                     {
                         animator = root.GetComponentInChildren<Animator>(true);
@@ -92,7 +119,7 @@ namespace F8HSceneAnimatorStreamer.Discovery
                 }
                 else
                 {
-                    animation = controllerObject as Animation;
+                    animation = ResolveAnimation(controllerObject);
                     if (animation == null && root != null)
                     {
                         animation = FindPlayingAnimation(root);
@@ -115,57 +142,49 @@ namespace F8HSceneAnimatorStreamer.Discovery
                 }
 
                 var map = new Dictionary<string, Transform>(StringComparer.OrdinalIgnoreCase);
-                AddKeypoints(profile, map, root, maleBases, index);
-
+                AddKeypoints(profile, role, map, root);
                 if (map.Count == 0)
                 {
                     continue;
                 }
 
                 UnityEngine.Object unityController = controllerObject as UnityEngine.Object;
-                int characterId = root != null
+                int baseId = root != null
                     ? root.GetInstanceID()
                     : (unityController != null ? unityController.GetInstanceID() : (index + 1));
+                int characterId = role == CharacterRole.Male ? (baseId ^ 0x5A5A0000) : baseId;
 
-                string name = root != null
+                string baseName = root != null
                     ? root.name
                     : (unityController != null ? unityController.name : ("character_" + index));
+                string characterName = (role == CharacterRole.Female ? "female:" : "male:") + (baseName ?? ("character_" + index));
 
-                characters.Add(new CharacterInfo
+                destination.Add(new CharacterInfo
                 {
                     CharacterId = characterId,
-                    CharacterName = name ?? ("character_" + index),
+                    CharacterName = characterName,
                     Root = root != null ? root.gameObject : null,
                     Animator = animator,
                     Animation = animation,
                     Controller = controllerObject,
-                    FemaleIndex = index,
+                    Role = role,
+                    RoleIndex = index,
                     ProfileId = profile.id,
                     KeypointMap = map
                 });
             }
-
-            return characters.ToArray();
         }
 
         private void AddKeypoints(GameProfile profile,
+            CharacterRole role,
             IDictionary<string, Transform> target,
-            Transform root,
-            Transform[] maleBases,
-            int index)
+            Transform root)
         {
             if (root != null)
             {
-                target[KeypointKind.FemaleRoot.ToString()] = root;
-            }
-
-            if (maleBases != null && maleBases.Length > 0)
-            {
-                Transform baseTransform = index < maleBases.Length ? maleBases[index] : maleBases[0];
-                if (baseTransform != null)
-                {
-                    target[KeypointKind.MalePenisBase.ToString()] = baseTransform;
-                }
+                target[role == CharacterRole.Male
+                    ? KeypointKind.MaleRoot.ToString()
+                    : KeypointKind.FemaleRoot.ToString()] = root;
             }
 
             if (profile.keypoints == null)
@@ -183,23 +202,25 @@ namespace F8HSceneAnimatorStreamer.Discovery
                 }
 
                 KeypointKind kind = binding.GetKind();
+                if (!ShouldApplyKeypoint(role, kind))
+                {
+                    continue;
+                }
+
                 string key = kind.ToString();
                 if (target.ContainsKey(key))
                 {
                     continue;
                 }
 
-                if (kind == KeypointKind.FemaleRoot)
+                if (kind == KeypointKind.FemaleRoot || kind == KeypointKind.MaleRoot)
                 {
-                    if (root != null)
+                    bool isRoleRoot = (role == CharacterRole.Female && kind == KeypointKind.FemaleRoot)
+                        || (role == CharacterRole.Male && kind == KeypointKind.MaleRoot);
+                    if (isRoleRoot && root != null)
                     {
                         target[key] = root;
                     }
-                    continue;
-                }
-
-                if (kind == KeypointKind.MalePenisBase)
-                {
                     continue;
                 }
 
@@ -237,6 +258,90 @@ namespace F8HSceneAnimatorStreamer.Discovery
             }
 
             return animations.Length > 0 ? animations[0] : null;
+        }
+
+        private static Animator ResolveAnimator(object controllerObject)
+        {
+            if (controllerObject == null)
+            {
+                return null;
+            }
+
+            Animator animator = controllerObject as Animator;
+            if (animator != null)
+            {
+                return animator;
+            }
+
+            Component component = controllerObject as Component;
+            if (component != null)
+            {
+                animator = component.GetComponentInChildren<Animator>(true);
+                if (animator != null)
+                {
+                    return animator;
+                }
+            }
+
+            GameObject gameObject = controllerObject as GameObject;
+            if (gameObject != null)
+            {
+                animator = gameObject.GetComponentInChildren<Animator>(true);
+                if (animator != null)
+                {
+                    return animator;
+                }
+            }
+
+            return null;
+        }
+
+        private static Animation ResolveAnimation(object controllerObject)
+        {
+            if (controllerObject == null)
+            {
+                return null;
+            }
+
+            Animation animation = controllerObject as Animation;
+            if (animation != null)
+            {
+                return animation;
+            }
+
+            Component component = controllerObject as Component;
+            if (component != null)
+            {
+                animation = component.GetComponentInChildren<Animation>(true);
+                if (animation != null)
+                {
+                    return animation;
+                }
+            }
+
+            GameObject gameObject = controllerObject as GameObject;
+            if (gameObject != null)
+            {
+                animation = gameObject.GetComponentInChildren<Animation>(true);
+                if (animation != null)
+                {
+                    return animation;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool ShouldApplyKeypoint(CharacterRole role, KeypointKind kind)
+        {
+            if (role == CharacterRole.Female)
+            {
+                return kind != KeypointKind.MaleRoot && kind != KeypointKind.MalePenisBase;
+            }
+
+            return kind != KeypointKind.FemaleRoot
+                && kind != KeypointKind.Vagina
+                && kind != KeypointKind.Anus;
         }
     }
 }

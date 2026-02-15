@@ -128,11 +128,15 @@ def main() -> int:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.host, args.port))
+    sock.settimeout(0.5)
     print(f"[udp_dump] listening on {args.host}:{args.port}")
 
     try:
         while True:
-            data, addr = sock.recvfrom(1024 * 1024)
+            try:
+                data, addr = sock.recvfrom(1024 * 1024)
+            except socket.timeout:
+                continue
             now = int(time.time() * 1000)
             msg = decode_any(data)
             print(f"\n[{now}] from {addr[0]}:{addr[1]} len={len(data)} type={msg.get('type')}")
@@ -158,6 +162,8 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\n[udp_dump] stopped")
         return 0
+    finally:
+        sock.close()
 
 
 if __name__ == "__main__":

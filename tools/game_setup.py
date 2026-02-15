@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -341,18 +342,21 @@ def _download_and_extract_asset(
     log(f"asset: {asset_name}")
     zip_path = download_with_retries(asset_url, cache_path, timeout_sec=timeout_sec, offline=offline)
     extract_zip(zip_path, game_root)
-    _post_extract_fixups(game_root, category)
+    _post_extract_fixups(game_root, category, zip_path)
     return zip_path
 
 
-def _post_extract_fixups(game_root: Path, category: str) -> None:
+def _post_extract_fixups(game_root: Path, category: str, zip_path: Path) -> None:
+    if category == "universal-unity-demosaics":
+        _normalize_uud_install_layout(game_root, zip_path)
+        return
+
     # Some third-party plugin zips put `plugins/*` at root instead of `BepInEx/plugins/*`.
     # Normalize them so installers always land under BepInEx.
     if category not in (
         "runtime-unity-editor",
         "cinematic-unity-explorer",
         "configuration-manager",
-        "universal-unity-demosaics",
     ):
         return
 
@@ -367,6 +371,83 @@ def _post_extract_fixups(game_root: Path, category: str) -> None:
         root_plugins.rmdir()
     except OSError:
         pass
+
+
+def _normalize_uud_install_layout(game_root: Path, zip_path: Path) -> None:
+    target_root = game_root / "BepInEx" / "plugins" / "UniversalUnityDemosaics"
+    target_root.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            archive_files = [
+                entry.filename.replace("\\", "/").strip("/")
+                for entry in zf.infolist()
+                if entry.filename
+                and not entry.is_dir()
+            ]
+    except Exception as e:
+        log(f"warning: cannot inspect UUD zip entries: {e}")
+        return
+
+    moved = 0
+    for entry in archive_files:
+        parts = [p for p in entry.split("/") if p]
+        if not parts:
+            continue
+
+        rel_parts = parts
+        if len(parts) >= 3 and parts[0].lower() == "bepinex" and parts[1].lower() == "plugins":
+            rel_parts = parts[2:]
+        elif len(parts) >= 2 and parts[0].lower() == "plugins":
+            rel_parts = parts[1:]
+
+        if not rel_parts:
+            continue
+
+        rel_path = Path(*rel_parts)
+        src_candidates = [
+            game_root / Path(*parts),
+            game_root / rel_path,
+            game_root / "plugins" / rel_path,
+            game_root / "BepInEx" / "plugins" / rel_path,
+        ]
+
+        src = next((candidate for candidate in src_candidates if candidate.is_file()), None)
+        if src is None:
+            continue
+
+        dst = target_root / rel_path
+        try:
+            if src.resolve() == dst.resolve():
+                continue
+        except Exception:
+            pass
+
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists():
+            if dst.is_dir():
+                shutil.rmtree(dst)
+            else:
+                dst.unlink()
+        shutil.move(str(src), str(dst))
+        moved += 1
+
+    if moved > 0:
+        log(f"normalized UUD into BepInEx/plugins/UniversalUnityDemosaics: moved={moved}")
+
+    root_plugins = game_root / "plugins"
+    if root_plugins.is_dir():
+        dirs = [p for p in root_plugins.rglob("*") if p.is_dir()]
+        dirs.sort(key=lambda p: len(p.parts), reverse=True)
+        for d in dirs:
+            try:
+                d.rmdir()
+            except OSError:
+                pass
+        try:
+            root_plugins.rmdir()
+        except OSError:
+            pass
 
 
 def _merge_tree_into(source_dir: Path, destination_dir: Path) -> None:

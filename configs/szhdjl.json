@@ -1,0 +1,33 @@
+{
+  "_managed_by": "tools/game_setup.py",
+  "id": "SZHDJL",
+  "fullName": "生殖活動記録",
+  "version": "1.0",
+  "processNames": ["生殖活動記録"],
+  "hooksStart": ["SuzuneControl, Assembly-CSharp:SexStartPlayer"],
+  "hooksEnd": ["SuzuneControl, Assembly-CSharp:SexEndPlayer"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "path exact Suzune/Spine Mecanim GameObject (Suzune)",
+  "maleControllerExpr": "path exact Suzune/Spine Mecanim GameObject (Suzune)",
+  "femaleRootsExpr": "path exact Suzune/Spine Mecanim GameObject (Suzune)/SkeletonUtility-Root/root/PLAYER Main",
+  "maleRootsExpr": "path exact Suzune/Spine Mecanim GameObject (Suzune)/SkeletonUtility-Root/root/BOY main",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 1,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    { "kind": "FemaleRoot", "pathOrName": "", "required": true },
+    { "kind": "MaleRoot", "pathOrName": "", "required": false },
+    { "kind": "MalePenisBase", "pathOrName": "BOY UNDER/BOY penis/BOY penis Mosaic", "required": false },
+    { "kind": "Vagina", "pathOrName": "UNDER/Mosaic player", "required": false },
+    { "kind": "Anus", "pathOrName": "", "required": false },
+    { "kind": "Mouth", "pathOrName": "TOP/Bust/Neck/Head/mouth/condom skirt16/condom skirt2 43/condom skirt2 44/condom skirt2 45", "required": false },
+    { "kind": "LeftHand", "pathOrName": "", "required": false },
+    { "kind": "RightHand", "pathOrName": "", "required": false },
+    { "kind": "LeftFoot", "pathOrName": "", "required": false },
+    { "kind": "RightFoot", "pathOrName": "", "required": false }
+  ]
+}

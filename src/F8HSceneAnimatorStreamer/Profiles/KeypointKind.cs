@@ -2,8 +2,9 @@
 {
     public enum KeypointKind
     {
-        MalePenisBase,
         FemaleRoot,
+        MaleRoot,
+        MalePenisBase,
         Vagina,
         Anus,
         Mouth,

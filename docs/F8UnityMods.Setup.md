@@ -89,11 +89,23 @@ Runtime capture mode is hook-only:
 - Streaming starts on configured `h_start` hooks and stops on `h_end`.
 - No fallback discovery, metadata stream, sample stream, control UDP, or hotkey gating.
 - Skeleton packets are emitted on the configured `SkeletonHost/SkeletonPort` only.
+- Hook debug logs are written on `HStart/HEnd` hits (method + instance label) in `BepInEx/LogOutput.log`.
 
 Live profile editing (no game restart):
 
 - Edit `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` directly.
 - Runtime polls config/profile changes and auto reloads hooks/profile.
+
+2D / Spine / Animbone profile notes:
+
+- No protocol change is needed; the exporter still streams standard transform skeleton packets.
+- `femaleRootsExpr` must resolve to a valid root `Transform` for the 2D character/object.
+- `maleRootsExpr` can be set independently; female/male are emitted as independent character packets.
+- `maleControllerExpr` and `maxMaleCount` are optional controls for male-side state/count.
+- `keypoints` can start with only `FemaleRoot`, then gradually add `Mouth/LeftHand/RightHand/LeftFoot/RightFoot`.
+- `femaleControllerExpr` can be empty or unresolved; skeleton streaming still works.
+- Without `Animator/Animation` controller state, packets keep streaming with `PoseKey = no_controller`.
+- `hooksStart` and `hooksEnd` are the only runtime gate for starting/stopping stream.
 
 Useful options:
 

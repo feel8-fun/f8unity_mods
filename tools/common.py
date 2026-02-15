@@ -45,50 +45,51 @@ EXPORTER_IL2CPP_DIR = (
 EXPORTER_README = ROOT / "src" / "F8HSceneAnimatorStreamer" / "README.md"
 
 
-GAME_PROFILE_CATALOG: dict[str, dict[str, Any]] = {
-    "hs2": {
-        "profile_id": "HS2",
-        "profile_template": "hs2.json",
-        "aliases": ["honeyselect2", "honeyselect2vr", "ai-syoujyo", "aisyoujyo"],
-        "hooks_start": ["HScene, Assembly-CSharp:SetStartVoice"],
-        "hooks_end": ["HScene, Assembly-CSharp:EndProc"],
-    },
-    "kks": {
-        "profile_id": "KKS",
-        "profile_template": "kks.json",
-        "aliases": ["koikatusunshine", "koikatsusunshine", "koikatu", "koikatsuparty", "koikatsu party"],
-        "hooks_start": ["HFlag, Assembly-CSharp:Start"],
-        "hooks_end": [
-            "HSprite, Assembly-CSharp:OnClickHSceneEnd",
-            "HSprite, Assembly-CSharp:OnClickTrespassing",
-        ],
-    },
-    "le": {
-        "profile_id": "LE",
-        "profile_template": "le.json",
-        "aliases": ["lastevil"],
-        "hooks_start": [
-            "EventSceneFramework, Assembly-CSharp:Init",
-            "AnimCombineEventer, Assembly-CSharp:Set",
-        ],
-        "hooks_end": ["EventSceneFramework, Assembly-CSharp:OnClickEnd"],
-    },
-    "com3d2": {
-        "profile_id": "COM3D2",
-        "profile_template": "com3d2.json",
-        "aliases": ["com3d2"],
-        "hooks_start": [
-            "YotogiPlayManager, Assembly-CSharp:UIStartup",
-            "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayMainStory",
-            "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayEveryday",
-            "SceneFreeModeSelectManager, Assembly-CSharp:CallScenePlayVip",
-        ],
-        "hooks_end": [
-            "YotogiPlayManager, Assembly-CSharp:OnClickNext",
-            "FreeModeInit, Assembly-CSharp:OnFinish",
-        ],
-    },
-}
+def _normalize_process_name(value: str) -> str:
+    return re.sub(r"[\s_-]+", "", value or "").lower()
+
+
+def _load_game_profile_catalog() -> dict[str, dict[str, Any]]:
+    catalog: dict[str, dict[str, Any]] = {}
+    configs_dir = ROOT / "configs"
+    if not configs_dir.is_dir():
+        return catalog
+
+    for path in sorted(configs_dir.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+
+        profile_id = str(payload.get("id", "") or "").strip()
+        if not profile_id:
+            continue
+
+        raw_names = payload.get("processNames", [])
+        aliases: list[str] = []
+        if isinstance(raw_names, list):
+            aliases = [str(item).strip() for item in raw_names if str(item).strip()]
+
+        # Keep detection robust even when processNames is empty/incomplete.
+        aliases.append(path.stem)
+        aliases.append(profile_id)
+        dedup_aliases = sorted({_normalize_process_name(name) for name in aliases if _normalize_process_name(name)})
+        if not dedup_aliases:
+            continue
+
+        game_type = _normalize_process_name(path.stem)
+        catalog[game_type] = {
+            "profile_id": profile_id,
+            "profile_template": path.name,
+            "aliases": dedup_aliases,
+        }
+
+    return catalog
+
+
+GAME_PROFILE_CATALOG: dict[str, dict[str, Any]] = _load_game_profile_catalog()
 
 PROFILE_MANAGED_BY_KEY = "_managed_by"
 PROFILE_MANAGED_BY_VALUE = "tools/game_setup.py"
@@ -385,9 +386,9 @@ def detect_game(target: str) -> DetectionResult:
 
 
 def detect_game_profile(process_name: str) -> tuple[str, str]:
-    normalized = re.sub(r"[\s_-]+", "", process_name or "").lower()
+    normalized = _normalize_process_name(process_name)
     for game_type, spec in GAME_PROFILE_CATALOG.items():
-        aliases = [re.sub(r"[\s_-]+", "", alias).lower() for alias in spec.get("aliases", [])]
+        aliases = [_normalize_process_name(alias) for alias in spec.get("aliases", [])]
         if normalized in aliases:
             return game_type, str(spec.get("profile_id", "") or "")
     return "unknown", ""
@@ -719,16 +720,19 @@ def _build_unknown_profile_template() -> dict[str, Any]:
         "hooksEnd": [],
         "hooksObserve": [],
         "controllerType": "Animator",
-        "controllerExpr": "",
+        "femaleControllerExpr": "",
+        "maleControllerExpr": "",
         "femaleRootsExpr": "",
-        "malePenisBaseExpr": "",
+        "maleRootsExpr": "",
         "maxFemaleCount": 1,
+        "maxMaleCount": 1,
         "useRegex": True,
         "poseLayer": 0,
         "poseLayerName": "",
         "rewindUnloop": True,
         "keypoints": [
             {"kind": "FemaleRoot", "pathOrName": "", "required": True},
+            {"kind": "MaleRoot", "pathOrName": "", "required": False},
             {"kind": "MalePenisBase", "pathOrName": "", "required": False},
             {"kind": "Vagina", "pathOrName": "", "required": False},
             {"kind": "Anus", "pathOrName": "", "required": False},

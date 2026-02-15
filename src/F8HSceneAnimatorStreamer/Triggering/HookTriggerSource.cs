@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using F8HSceneAnimatorStreamer.NonPortable;
 using HarmonyLib;
 using F8HSceneAnimatorStreamer.Profiles;
 using UnityEngine;
@@ -101,57 +102,87 @@ namespace F8HSceneAnimatorStreamer.Triggering
                 ? profile.hooksObserve.Where(item => !string.IsNullOrEmpty(item)).Distinct().ToArray()
                 : new string[0];
 
+            int patchedStart = 0;
+            int patchedEnd = 0;
+            int patchedObserve = 0;
+
             foreach (string descriptor in startMethods)
             {
-                PatchAsStart(descriptor);
+                if (PatchAsStart(descriptor))
+                {
+                    patchedStart++;
+                }
             }
             foreach (string descriptor in endMethods)
             {
-                PatchAsEnd(descriptor);
+                if (PatchAsEnd(descriptor))
+                {
+                    patchedEnd++;
+                }
             }
             foreach (string descriptor in observeMethods)
             {
-                PatchAsObserve(descriptor);
+                if (PatchAsObserve(descriptor))
+                {
+                    patchedObserve++;
+                }
             }
+
+            Globals.Logger?.LogInfo(
+                "[hook] patch summary: start=" + patchedStart +
+                ", end=" + patchedEnd +
+                ", observe=" + patchedObserve);
         }
 
-        private void PatchAsStart(string descriptor)
+        private bool PatchAsStart(string descriptor)
         {
             MethodInfo method = AccessTools.Method(descriptor);
             if (method == null)
             {
-                return;
+                Globals.Logger?.LogWarning("[hook] start descriptor not found: " + descriptor);
+                return false;
             }
             if (_startMethods.Add(method))
             {
                 _harmony.Patch(method, postfix: new HarmonyMethod(_startPostfix));
+                return true;
             }
+
+            return false;
         }
 
-        private void PatchAsEnd(string descriptor)
+        private bool PatchAsEnd(string descriptor)
         {
             MethodInfo method = AccessTools.Method(descriptor);
             if (method == null)
             {
-                return;
+                Globals.Logger?.LogWarning("[hook] end descriptor not found: " + descriptor);
+                return false;
             }
             if (_endMethods.Add(method))
             {
                 _harmony.Patch(method, prefix: new HarmonyMethod(_endPrefix));
+                return true;
             }
+
+            return false;
         }
 
-        private void PatchAsObserve(string descriptor)
+        private bool PatchAsObserve(string descriptor)
         {
             MethodInfo method = AccessTools.Method(descriptor);
             if (method == null)
             {
-                return;
+                Globals.Logger?.LogWarning("[hook] observe descriptor not found: " + descriptor);
+                return false;
             }
             if (_observeMethods.Add(method))
             {
                 _harmony.Patch(method, postfix: new HarmonyMethod(_observePostfix));
+                return true;
             }
+
+            return false;
         }
 
         private void Emit(TriggerSignal signal)
@@ -165,6 +196,7 @@ namespace F8HSceneAnimatorStreamer.Triggering
 
         private void HandleStart(MethodBase method, object instance)
         {
+            Globals.Logger?.LogInfo("[hook] HStart " + GetMethodName(method) + " instance=" + BuildInstanceLabel(instance));
             Emit(new TriggerSignal
             {
                 Type = TriggerEventType.HStart,
@@ -177,6 +209,7 @@ namespace F8HSceneAnimatorStreamer.Triggering
 
         private void HandleEnd(MethodBase method, object instance)
         {
+            Globals.Logger?.LogInfo("[hook] HEnd " + GetMethodName(method) + " instance=" + BuildInstanceLabel(instance));
             Emit(new TriggerSignal
             {
                 Type = TriggerEventType.HEnd,
@@ -196,6 +229,30 @@ namespace F8HSceneAnimatorStreamer.Triggering
                 Method = GetMethodName(method),
                 HookInstance = instance
             });
+        }
+
+        private static string BuildInstanceLabel(object instance)
+        {
+            if (instance == null)
+            {
+                return "null";
+            }
+
+            string typeName = instance.GetType().FullName ?? instance.GetType().Name;
+            try
+            {
+                UnityEngine.Object unityObject = instance as UnityEngine.Object;
+                if (unityObject != null)
+                {
+                    string objectName = string.IsNullOrEmpty(unityObject.name) ? "<unnamed>" : unityObject.name;
+                    return typeName + "('" + objectName + "')";
+                }
+            }
+            catch
+            {
+            }
+
+            return typeName;
         }
 
         private static string GetMethodName(MethodBase method)

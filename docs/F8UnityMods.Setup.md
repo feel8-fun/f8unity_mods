@@ -46,8 +46,8 @@ Returns JSON fields:
 - `backend` (`mono|il2cpp|unknown`)
 - `arch` (`x86|x64|unknown`)
 - `process_name`
-- `game_type` (`hs2|kks|le|com3d2|unknown`)
-- `profile_id` (`HS2|KKS|LE|COM3D2|""`)
+- `game_type` (auto-derived from `configs/*.json`, or `unknown`)
+- `profile_id` (template `id` from matched config, or `""`)
 - `has_bepinex`
 - `bepinex_variant`
 - `bepinex_version`
@@ -67,14 +67,14 @@ python tools/game_setup.py install --target "C:\Games\MyUnityGame"
 Behavior:
 
 1. Detect backend/arch/unity version.
-2. Detect supported game type/profile from process name (`HS2/KKS/LE/COM3D2` when matched).
+2. Detect supported game type/profile from process name (auto-loaded from `configs/*.json` templates).
 3. Install matching BepInEx if missing.
 4. Install exporter plugin from local build output, automatically selecting `Mono` or `IL2CPP` build.
 5. Install exporter config at `BepInEx/config/com.feel8.f8-hscene-animator-streamer.cfg`
    with profile-aware hook defaults (unless a custom unmanaged config already exists).
 6. Install single active profile at
    `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json`:
-   - Known game: installs matching built-in template (`HS2/KKS/LE/COM3D2`).
+   - Known game: installs matching template from `configs/*.json`.
    - Unknown game: installs a minimal editable `CUSTOM` template.
 7. Install RuntimeUnityEditor release matching BepInEx major line.
 8. Install CinematicUnityExplorer release matching BepInEx variant.
@@ -106,6 +106,14 @@ Live profile editing (no game restart):
 - `femaleControllerExpr` can be empty or unresolved; skeleton streaming still works.
 - Without `Animator/Animation` controller state, packets keep streaming with `PoseKey = no_controller`.
 - `hooksStart` and `hooksEnd` are the only runtime gate for starting/stopping stream.
+
+Profile expression tips:
+
+- `??` means fallback, only first non-empty branch is used.
+  Example: `path exact A ?? path exact B`
+- `||` means union, all branches are evaluated and merged.
+  Example: `path exact CH_Prefub_A/CHbase || path exact CH_Prefub_B/CHbase`
+- Union results are merged in order and deduplicated by Unity object instance.
 
 Useful options:
 

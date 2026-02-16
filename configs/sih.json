@@ -1,0 +1,35 @@
+{
+  "id": "SIH",
+  "fullName": "Summer In Heat",
+  "version": "1.0",
+  "processNames": ["SummerInHeat"],
+  "hooksStart": [
+    "FH_Controller, Assembly-CSharp:Start_Method",
+    "Talk_Controller, Assembly-CSharp:Start_Method"
+  ],
+  "hooksEnd": ["FadeManager_GUI, Assembly-CSharp:TransScene"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact CH_Prefub_A/CHbase || path exact CH_Prefub_B/CHbase",
+  "maleRootsExpr": "path exact HS01_penis11_PC01 || path exact HS00_penis01_PC03",
+  "maxFemaleCount": 2,
+  "maxMaleCount": 2,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"HS_cli","required":false},
+    {"kind":"Anus","pathOrName":"HS_anaruB01","required":false},
+    {"kind":"Mouth","pathOrName":"HS_mouth01","required":false},
+    {"kind":"LeftHand","pathOrName":"bip01 L Finger1Nub","required":false},
+    {"kind":"RightHand","pathOrName":"bip01 R Finger1Nub","required":false},
+    {"kind":"LeftFoot","pathOrName":"bip01 L Toe4Nub","required":false},
+    {"kind":"RightFoot","pathOrName":"bip01 R Toe4Nub","required":false}
+  ]
+}

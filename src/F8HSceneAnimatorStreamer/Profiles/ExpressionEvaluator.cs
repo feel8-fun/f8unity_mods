@@ -18,17 +18,24 @@ namespace F8HSceneAnimatorStreamer.Profiles
                 return new object[0];
             }
 
-            string[] fallback = expression.Split(new[] { "??" }, StringSplitOptions.None);
-            for (int i = 0; i < fallback.Length; i++)
+            string[] union = expression.Split(new[] { "||" }, StringSplitOptions.None);
+            var merged = new List<object>();
+            for (int i = 0; i < union.Length; i++)
             {
-                object[] result = EvaluateSingle(hookInstance, ApplyTemplate(fallback[i].Trim(), hookInstance));
-                if (result.Length > 0)
+                object[] result = EvaluateWithFallback(hookInstance, union[i]);
+                for (int j = 0; j < result.Length; j++)
                 {
-                    return result;
+                    object candidate = result[j];
+                    if (candidate == null || ContainsReference(merged, candidate))
+                    {
+                        continue;
+                    }
+
+                    merged.Add(candidate);
                 }
             }
 
-            return new object[0];
+            return merged.ToArray();
         }
 
         public Transform[] EvaluateTransforms(object hookInstance, string expression)
@@ -95,6 +102,61 @@ namespace F8HSceneAnimatorStreamer.Profiles
             }
 
             return null;
+        }
+
+        private object[] EvaluateWithFallback(object hookInstance, string unionPartExpression)
+        {
+            if (string.IsNullOrEmpty(unionPartExpression))
+            {
+                return new object[0];
+            }
+
+            string[] fallback = unionPartExpression.Split(new[] { "??" }, StringSplitOptions.None);
+            for (int i = 0; i < fallback.Length; i++)
+            {
+                try
+                {
+                    object[] result = EvaluateSingle(hookInstance, ApplyTemplate(fallback[i].Trim(), hookInstance));
+                    if (result.Length > 0)
+                    {
+                        return result;
+                    }
+                }
+                catch
+                {
+                    // Keep evaluating sibling fallbacks/union branches even when one fails.
+                }
+            }
+
+            return new object[0];
+        }
+
+        private static bool ContainsReference(IList<object> values, object candidate)
+        {
+            UnityEngine.Object candidateUnity = candidate as UnityEngine.Object;
+            if (candidateUnity != null)
+            {
+                int candidateId = candidateUnity.GetInstanceID();
+                for (int i = 0; i < values.Count; i++)
+                {
+                    UnityEngine.Object currentUnity = values[i] as UnityEngine.Object;
+                    if (currentUnity != null && currentUnity.GetInstanceID() == candidateId)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            for (int i = 0; i < values.Count; i++)
+            {
+                if (ReferenceEquals(values[i], candidate))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private object[] EvaluateSingle(object hookInstance, string expression)

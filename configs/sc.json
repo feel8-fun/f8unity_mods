@@ -1,0 +1,32 @@
+{
+  "id": "SC",
+  "fullName": "Succubus Cafe",
+  "version": "1.0",
+  "processNames": ["SuccubusCafe"],
+  "hooksStart": ["Menu_Function, Assembly-CSharp:LadySexModeEnter"],
+  "hooksEnd": ["Menu_Function, Assembly-CSharp:BackToMainMenu"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "path exact All_Model/player_A/Main",
+  "femaleRootsExpr": "path exact All_Model children prefix Lady_",
+  "maleRootsExpr": "path exact All_Model/player_A/Main/DeformationSystem/Penis_root",
+  "maxFemaleCount": 2,
+  "maxMaleCount": 1,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"Penis_0/Left_Testicle_root/Left_Testicle_0/Left_Testicle_1","required":false},
+    {"kind":"Vagina","pathOrName":"Upper_Vaginal","required":false},
+    {"kind":"Anus","pathOrName":"","required":false},
+    {"kind":"Mouth","pathOrName":"Lip_Tongue_3","required":false},
+    {"kind":"LeftHand","pathOrName":"IndexFinger1_L","required":false},
+    {"kind":"RightHand","pathOrName":"IndexFinger1_R","required":false},
+    {"kind":"LeftFoot","pathOrName":"BigToe1_L","required":false},
+    {"kind":"RightFoot","pathOrName":"BigToe1_R","required":false}
+  ]
+}

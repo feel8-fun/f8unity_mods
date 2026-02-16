@@ -1,0 +1,32 @@
+{
+  "id": "AIDR",
+  "fullName": "AI-deal-Rays",
+  "version": "1.0",
+  "processNames": ["AIdealRaysR18"],
+  "hooksStart": ["EventManager, Assembly-CSharp:ActiveHEvent"],
+  "hooksEnd": ["EventManager, Assembly-CSharp:EventFinish"],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "instance.AIdealAnimator",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "instance.AIdeal",
+  "maleRootsExpr": "path exact tamaL01",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 1,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"tamaL01","required":false},
+    {"kind":"Vagina","pathOrName":"Hips.vag","required":false},
+    {"kind":"Anus","pathOrName":"","required":false},
+    {"kind":"Mouth","pathOrName":"Chin","required":false},
+    {"kind":"LeftHand","pathOrName":"Index Distal.L_end","required":false},
+    {"kind":"RightHand","pathOrName":"Index Distal.R_end","required":false},
+    {"kind":"LeftFoot","pathOrName":"Toe.L_end","required":false},
+    {"kind":"RightFoot","pathOrName":"Toe.R_end","required":false}
+  ]
+}

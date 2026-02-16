@@ -1,0 +1,35 @@
+{
+  "id": "SCH",
+  "fullName": "Solas City Heroes",
+  "version": "1.0",
+  "processNames": ["Solas City Heroes", "SolasCityHeroes"],
+  "hooksStart": ["SexSystem, Assembly-CSharp:StartSex"],
+  "hooksEnd": [
+    "SexSystem, Assembly-CSharp:Escape",
+    "PlayerHub, Assembly-CSharp:Start"
+  ],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "instance.PlayerAnim",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact Player || path exact /Player",
+  "maleRootsExpr": "path exact Enemy/ArmatureFem_000/Global/Position/waist",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 1,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"groin_R","required":false},
+    {"kind":"Vagina","pathOrName":"groin_R","required":false},
+    {"kind":"Anus","pathOrName":"","required":false},
+    {"kind":"Mouth","pathOrName":"MouthLower","required":false},
+    {"kind":"LeftHand","pathOrName":"hand_L","required":false},
+    {"kind":"RightHand","pathOrName":"hand_R","required":false},
+    {"kind":"LeftFoot","pathOrName":"","required":false},
+    {"kind":"RightFoot","pathOrName":"","required":false}
+  ]
+}

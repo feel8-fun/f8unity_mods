@@ -4,6 +4,6 @@ namespace F8HSceneAnimatorStreamer.Sampling
 {
     internal interface ISkeletonSampler
     {
-        BoneSample[] Sample(CharacterInfo character);
+        BoneSample[] Sample(CharacterInfo character, bool includeInactive);
     }
 }

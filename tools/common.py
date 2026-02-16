@@ -820,6 +820,9 @@ def install_exporter_config(game_root: Path, detection: DetectionResult) -> tupl
             "[Capture]",
             "TargetFps = 60",
             "PoseKeyStrategy = clip_then_statehash",
+            "DebugDumpToggleKey = F8",
+            "DebugDumpEnabled = false",
+            "DebugDumpIncludeInactive = true",
             "",
         ]
     )

@@ -26,6 +26,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             Globals.ManagerObject.AddComponent<HookTriggerSource>();
             Globals.ManagerObject.AddComponent<ProfileCharacterProvider>();
             Globals.ManagerObject.AddComponent<KeypointSampler>();
+            Globals.ManagerObject.AddComponent<FullSkeletonSampler>();
             Globals.ManagerObject.AddComponent<AnimatorStateReader>();
             Globals.ManagerObject.AddComponent<AnimationStateReader>();
             Globals.ManagerObject.AddComponent<ControllerStateRouter>();

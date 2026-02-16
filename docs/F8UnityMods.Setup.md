@@ -91,6 +91,17 @@ Runtime capture mode is hook-only:
 - Skeleton packets are emitted on the configured `SkeletonHost/SkeletonPort` only.
 - Hook debug logs are written on `HStart/HEnd` hits (method + instance label) in `BepInEx/LogOutput.log`.
 
+Full Hierarchy Debug Dump:
+
+- Toggle key is configurable in cfg (`[Capture] DebugDumpToggleKey`, default `F8`).
+- Debug mode can start enabled via cfg (`DebugDumpEnabled = true`) or be toggled in-game.
+- While debug mode is ON, exporter sends both:
+  - normal stream schema: `unity.keypoints.realtime.v1`
+  - full hierarchy schema: `unity.transforms.fullhierarchy.v1`
+- Full hierarchy names use root-relative transform paths and can include inactive nodes
+  (`DebugDumpIncludeInactive = true|false`).
+- This mode can significantly increase UDP traffic due to larger bone counts/chunking.
+
 Live profile editing (no game restart):
 
 - Edit `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` directly.

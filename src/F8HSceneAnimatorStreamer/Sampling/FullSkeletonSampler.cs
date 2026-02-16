@@ -10,13 +10,14 @@ namespace F8HSceneAnimatorStreamer.Sampling
         private sealed class CachedRig
         {
             public Transform Root;
+            public bool IncludeInactive;
             public Transform[] Bones;
             public string[] Paths;
         }
 
         private readonly Dictionary<int, CachedRig> _cache = new Dictionary<int, CachedRig>();
 
-        public BoneSample[] Sample(CharacterModel character)
+        public BoneSample[] Sample(CharacterModel character, bool includeInactive)
         {
             if (character == null || character.Root == null)
             {
@@ -25,9 +26,13 @@ namespace F8HSceneAnimatorStreamer.Sampling
 
             int id = character.CharacterId;
             CachedRig cachedRig;
-            if (!_cache.TryGetValue(id, out cachedRig) || cachedRig.Root == null)
+            Transform root = character.Root.transform;
+            if (!_cache.TryGetValue(id, out cachedRig)
+                || cachedRig.Root == null
+                || cachedRig.Root != root
+                || cachedRig.IncludeInactive != includeInactive)
             {
-                cachedRig = BuildCache(character.Root.transform);
+                cachedRig = BuildCache(root, includeInactive);
                 _cache[id] = cachedRig;
             }
 
@@ -52,9 +57,9 @@ namespace F8HSceneAnimatorStreamer.Sampling
             return result;
         }
 
-        private static CachedRig BuildCache(Transform root)
+        private static CachedRig BuildCache(Transform root, bool includeInactive)
         {
-            Transform[] bones = root.GetComponentsInChildren<Transform>(true);
+            Transform[] bones = root.GetComponentsInChildren<Transform>(includeInactive);
             string[] paths = new string[bones.Length];
             for (int i = 0; i < bones.Length; i++)
             {
@@ -64,6 +69,7 @@ namespace F8HSceneAnimatorStreamer.Sampling
             return new CachedRig
             {
                 Root = root,
+                IncludeInactive = includeInactive,
                 Bones = bones,
                 Paths = paths
             };

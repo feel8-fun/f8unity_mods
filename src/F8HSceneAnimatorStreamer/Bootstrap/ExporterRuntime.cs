@@ -20,6 +20,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
         private ProfileResolver _profileResolver;
         private ICharacterProvider _characterProvider;
         private IKeypointSampler _keypointSampler;
+        private ISkeletonSampler _fullSkeletonSampler;
         private IControllerStateReader _controllerReader;
 
         private UdpDatagramSender _skeletonSender;
@@ -36,6 +37,8 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
         private string _activeHost = string.Empty;
         private int _activePort = -1;
         private float _noCharactersSince = -1f;
+        private bool _debugDumpEnabled;
+        private KeyCode _debugToggleKey = KeyCode.F8;
 
         private void Start()
         {
@@ -43,6 +46,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             _profileResolver = GetComponent<ProfileResolver>();
             _characterProvider = GetComponent<ProfileCharacterProvider>();
             _keypointSampler = GetComponent<KeypointSampler>();
+            _fullSkeletonSampler = GetComponent<FullSkeletonSampler>();
             _controllerReader = GetComponent<ControllerStateRouter>();
             _encoder = new SkeletonPacketEncoder();
 
@@ -50,6 +54,9 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             _profilePath = Path.Combine(baseDirectory, "profile.json");
             _lastConfigWriteTicks = ReadWriteTicks(ExporterConfig.ConfigPath);
             _lastProfileWriteTicks = ReadWriteTicks(_profilePath);
+
+            _debugDumpEnabled = ExporterConfig.DebugDumpEnabled != null && ExporterConfig.DebugDumpEnabled.Value;
+            _debugToggleKey = ParseKeyCode(ExporterConfig.DebugDumpToggleKey != null ? ExporterConfig.DebugDumpToggleKey.Value : null);
 
             EnsureSkeletonSender();
 
@@ -75,6 +82,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
 
         private void Update()
         {
+            HandleDebugDumpToggle();
             PollConfigAndProfileHotReload();
         }
 
@@ -120,7 +128,28 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
                 }
 
                 SendSkeletonPackets(character, bones, "unity.keypoints.realtime.v1", timestampMs, hasState, state);
+
+                if (_debugDumpEnabled && _fullSkeletonSampler != null)
+                {
+                    BoneSample[] debugBones = _fullSkeletonSampler.Sample(character, ExporterConfig.DebugDumpIncludeInactive.Value);
+                    if (debugBones != null && debugBones.Length > 0)
+                    {
+                        SendSkeletonPackets(character, debugBones, "unity.transforms.fullhierarchy.v1", timestampMs, hasState, state);
+                    }
+                }
             }
+        }
+
+        private void HandleDebugDumpToggle()
+        {
+            if (!Input.GetKeyDown(_debugToggleKey))
+            {
+                return;
+            }
+
+            _debugDumpEnabled = !_debugDumpEnabled;
+            Globals.Logger?.LogInfo("[debug_dump] full hierarchy mode: " + (_debugDumpEnabled ? "ON" : "OFF")
+                + " key=" + _debugToggleKey + " includeInactive=" + ExporterConfig.DebugDumpIncludeInactive.Value);
         }
 
         private void HandleTriggerSignal(TriggerSignal signal)
@@ -172,6 +201,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             _lastProfileWriteTicks = profileTicks;
 
             ExporterConfig.Reload();
+            _debugToggleKey = ParseKeyCode(ExporterConfig.DebugDumpToggleKey != null ? ExporterConfig.DebugDumpToggleKey.Value : null);
             if (_profileResolver != null)
             {
                 _profileResolver.Reload();
@@ -181,6 +211,22 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
                 _hookSource.ReloadHooks();
             }
             EnsureSkeletonSender();
+        }
+
+        private static KeyCode ParseKeyCode(string raw)
+        {
+            if (!string.IsNullOrEmpty(raw))
+            {
+                try
+                {
+                    return (KeyCode)Enum.Parse(typeof(KeyCode), raw, true);
+                }
+                catch
+                {
+                    // Fall back to default below.
+                }
+            }
+            return KeyCode.F8;
         }
 
         private void TryAutoEndOnNoCharacters()

@@ -43,9 +43,9 @@ def _build_install_plan(
     detection: DetectionResult,
     force_reinstall: bool,
     skip_exporter: bool,
-    skip_rue: bool,
-    skip_cue: bool,
-    skip_config_manager: bool,
+    install_rue: bool,
+    install_cue: bool,
+    install_config_manager: bool,
     install_uud: bool,
 ) -> dict[str, Any]:
     actions: list[str] = []
@@ -71,11 +71,11 @@ def _build_install_plan(
         actions.append("install_exporter")
         actions.append("install_exporter_config")
         actions.append("install_profile")
-    if not skip_rue:
+    if install_rue:
         actions.append("install_runtime_unity_editor")
-    if not skip_cue:
+    if install_cue:
         actions.append("install_cinematic_unity_explorer")
-    if not skip_config_manager:
+    if install_config_manager:
         actions.append("install_configuration_manager")
     if install_uud:
         actions.append("install_universal_unity_demosaics")
@@ -96,9 +96,9 @@ def cmd_diagnose(args: argparse.Namespace, config: SetupConfig) -> None:
         detection,
         args.force_reinstall,
         args.skip_exporter,
-        args.skip_rue,
-        args.skip_cue,
-        args.skip_config_manager,
+        args.rue,
+        args.cue,
+        args.config_manager,
         args.uud,
     )
     print_json(
@@ -180,19 +180,19 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         summary["actions"].append({"install_exporter": "skipped"})
         summary["actions"].append({"install_profile": "skipped"})
 
-    if not args.skip_rue:
+    if args.rue:
         rue_path = _install_runtime_unity_editor(detection, config, offline=args.offline)
         summary["actions"].append({"install_runtime_unity_editor": str(rue_path)})
     else:
         summary["actions"].append({"install_runtime_unity_editor": "skipped"})
 
-    if not args.skip_cue:
+    if args.cue:
         cue_path = _install_cinematic_unity_explorer(detection, config, offline=args.offline)
         summary["actions"].append({"install_cinematic_unity_explorer": str(cue_path)})
     else:
         summary["actions"].append({"install_cinematic_unity_explorer": "skipped"})
 
-    if not args.skip_config_manager:
+    if args.config_manager:
         config_manager_path = _install_configuration_manager(detection, config, offline=args.offline)
         summary["actions"].append({"install_configuration_manager": str(config_manager_path)})
     else:
@@ -487,10 +487,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_diag = sub.add_parser("diagnose", help="Show what install would do without mutating files")
     p_diag.add_argument("--target", required=True, help="Path to game exe or game folder")
     p_diag.add_argument("--force-reinstall", action="store_true", help="Assume force reinstall behavior in plan")
-    p_diag.add_argument("--skip-rue", action="store_true")
-    p_diag.add_argument("--skip-cue", action="store_true")
+    p_diag.add_argument("--rue", action="store_true", help="Also install RuntimeUnityEditor")
+    p_diag.add_argument("--cue", action="store_true", help="Also install CinematicUnityExplorer")
     p_diag.add_argument("--skip-exporter", action="store_true")
-    p_diag.add_argument("--skip-config-manager", action="store_true")
+    p_diag.add_argument("--config-manager", action="store_true", help="Also install ConfigurationManager")
     p_diag.add_argument("--uud", action="store_true", help="Also install UniversalUnityDemosaics")
     p_diag.add_argument("--offline", action="store_true")
     p_diag.set_defaults(func=cmd_diagnose)
@@ -498,16 +498,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser(
         "install",
         help=(
-            "Install BepInEx, exporter, RuntimeUnityEditor, "
-            "CinematicUnityExplorer and ConfigurationManager "
-            "(use --uud to also install UniversalUnityDemosaics)"
+            "Install BepInEx and exporter "
+            "(use --rue/--cue/--config-manager/--uud for optional plugins)"
         ),
     )
     p_install.add_argument("--target", required=True, help="Path to game exe or game folder")
     p_install.add_argument("--force-reinstall", action="store_true", help="Replace existing mismatched BepInEx")
-    p_install.add_argument("--skip-rue", action="store_true", help="Do not install RuntimeUnityEditor")
-    p_install.add_argument("--skip-cue", action="store_true", help="Do not install CinematicUnityExplorer")
-    p_install.add_argument("--skip-config-manager", action="store_true", help="Do not install ConfigurationManager")
+    p_install.add_argument("--rue", action="store_true", help="Also install RuntimeUnityEditor")
+    p_install.add_argument("--cue", action="store_true", help="Also install CinematicUnityExplorer")
+    p_install.add_argument("--config-manager", action="store_true", help="Also install ConfigurationManager")
     p_install.add_argument("--uud", action="store_true", help="Also install UniversalUnityDemosaics")
     p_install.add_argument("--skip-exporter", action="store_true", help="Do not install exporter plugin")
     p_install.add_argument("--offline", action="store_true", help="Use only cached download artifacts")

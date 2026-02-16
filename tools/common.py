@@ -730,6 +730,11 @@ def _build_unknown_profile_template() -> dict[str, Any]:
         "poseLayer": 0,
         "poseLayerName": "",
         "rewindUnloop": True,
+        "customPoseExpr": "",
+        "customNormalizedTimeExpr": "",
+        "customSpeedExpr": "",
+        "customLengthExpr": "",
+        "autoEndOnNoCharactersSeconds": 0,
         "keypoints": [
             {"kind": "FemaleRoot", "pathOrName": "", "required": True},
             {"kind": "MaleRoot", "pathOrName": "", "required": False},

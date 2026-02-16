@@ -3,6 +3,7 @@ using System.IO;
 using F8HSceneAnimatorStreamer.Common;
 using F8HSceneAnimatorStreamer.Config;
 using F8HSceneAnimatorStreamer.Discovery;
+using F8HSceneAnimatorStreamer.NonPortable;
 using F8HSceneAnimatorStreamer.Protocol;
 using F8HSceneAnimatorStreamer.Profiles;
 using F8HSceneAnimatorStreamer.Sampling;
@@ -34,6 +35,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
         private long _lastProfileWriteTicks = -1;
         private string _activeHost = string.Empty;
         private int _activePort = -1;
+        private float _noCharactersSince = -1f;
 
         private void Start()
         {
@@ -93,8 +95,10 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             CharacterModel[] characters = _characterProvider.GetActiveCharacters();
             if (characters.Length == 0)
             {
+                TryAutoEndOnNoCharacters();
                 return;
             }
+            _noCharactersSince = -1f;
 
             _frameId++;
             long timestampMs = TimeUtil.NowMs();
@@ -129,6 +133,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             if (signal.Type == TriggerEventType.HStart)
             {
                 _hookActive = true;
+                _noCharactersSince = -1f;
                 if (_characterProvider != null)
                 {
                     _characterProvider.StartSession(signal.HookInstance, signal.Method);
@@ -139,6 +144,7 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
             if (signal.Type == TriggerEventType.HEnd)
             {
                 _hookActive = false;
+                _noCharactersSince = -1f;
                 if (_characterProvider != null)
                 {
                     _characterProvider.EndSession(signal.Method);
@@ -175,6 +181,35 @@ namespace F8HSceneAnimatorStreamer.Bootstrap
                 _hookSource.ReloadHooks();
             }
             EnsureSkeletonSender();
+        }
+
+        private void TryAutoEndOnNoCharacters()
+        {
+            GameProfile profile = _profileResolver != null ? _profileResolver.ActiveProfile : null;
+            float seconds = profile != null ? profile.autoEndOnNoCharactersSeconds : 0f;
+            if (seconds <= 0f)
+            {
+                return;
+            }
+
+            if (_noCharactersSince < 0f)
+            {
+                _noCharactersSince = Time.unscaledTime;
+                return;
+            }
+
+            if ((Time.unscaledTime - _noCharactersSince) < seconds)
+            {
+                return;
+            }
+
+            _hookActive = false;
+            _noCharactersSince = -1f;
+            if (_characterProvider != null)
+            {
+                _characterProvider.EndSession("auto_end_no_characters");
+            }
+            Globals.Logger?.LogInfo("[hook] auto-ended session: no active characters for " + seconds.ToString("0.###") + "s");
         }
 
         private void EnsureSkeletonSender()

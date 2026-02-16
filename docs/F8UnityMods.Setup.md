@@ -115,6 +115,22 @@ Profile expression tips:
   Example: `path exact CH_Prefub_A/CHbase || path exact CH_Prefub_B/CHbase`
 - Union results are merged in order and deduplicated by Unity object instance.
 
+Optional custom animation context fields:
+
+- `customPoseExpr`
+- `customNormalizedTimeExpr`
+- `customSpeedExpr`
+- `customLengthExpr`
+
+When normal Animator/Animation state reading fails, runtime can fall back to these expressions
+to emit animation context (`ANIM` trailer) instead of `no_controller`.
+
+Optional auto-end field:
+
+- `autoEndOnNoCharactersSeconds` (default `0` = disabled)
+
+If set to `> 0`, hook session auto-ends after this many seconds with no active characters.
+
 Useful options:
 
 - `--force-reinstall`: replace mismatched existing BepInEx after backup.

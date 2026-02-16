@@ -20,6 +20,11 @@
         public int poseLayer = 0;
         public string poseLayerName = string.Empty;
         public bool rewindUnloop = true;
+        public string customPoseExpr = string.Empty;
+        public string customNormalizedTimeExpr = string.Empty;
+        public string customSpeedExpr = string.Empty;
+        public string customLengthExpr = string.Empty;
+        public float autoEndOnNoCharactersSeconds = 0f;
         public KeypointBinding[] keypoints = new KeypointBinding[0];
 
         public ControllerType GetControllerType()

@@ -1,0 +1,43 @@
+{
+  "id": "AGH",
+  "fullName": "Houkago Rinkan Chuudoku",
+  "version": "1.0",
+  "processNames": ["AGH"],
+  "hooksStart": [
+    "FH_AnimeController, Assembly-CSharp:Start",
+    "RI_AnimeController, Assembly-CSharp:Start"
+  ],
+  "hooksEnd": [
+    "FH_SetUp, Assembly-CSharp:Unload",
+    "RI_SetUp, Assembly-CSharp:Unload"
+  ],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact CH01/CH0001 || path exact CH02/CH0002",
+  "maleRootsExpr": "path exact BP00_tamaL || path exact BP00_tamaL_mobA || path exact BP00_tamaL_mobB || path exact BP00_tamaL_mobC",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 4,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "customPoseExpr": "",
+  "customNormalizedTimeExpr": "",
+  "customSpeedExpr": "",
+  "customLengthExpr": "",
+  "autoEndOnNoCharactersSeconds": 0,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"HS01_cli","required":false},
+    {"kind":"Anus","pathOrName":"HS01_anaru","required":false},
+    {"kind":"Mouth","pathOrName":"BF01_tongue01","required":false},
+    {"kind":"LeftHand","pathOrName":"bip01 L Finger1Nub","required":false},
+    {"kind":"RightHand","pathOrName":"bip01 R Finger1Nub","required":false},
+    {"kind":"LeftFoot","pathOrName":"","required":false},
+    {"kind":"RightFoot","pathOrName":"","required":false}
+  ]
+}

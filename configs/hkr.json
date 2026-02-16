@@ -1,0 +1,43 @@
+{
+  "id": "HKR",
+  "fullName": "Holy Knight Ricca",
+  "version": "1.0",
+  "processNames": ["HolyKnightRicca"],
+  "hooksStart": [
+    "ANV.NovelImageController, ANVAssemblyDifinition:Initialize",
+    "ATD.UIController, ATDAssemblyDifinition:FinishADV"
+  ],
+  "hooksEnd": [
+    "ANV.NovelImageController, ANVAssemblyDifinition:OnDestroy",
+    "ATD.UIController, ATDAssemblyDifinition:OnDestroy"
+  ],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact ricasso/root",
+  "maleRootsExpr": "path exact DEF-testicle || path exact ORG-testicle || path exact DEF-Ovipositor || path exact slimeAtd/root/DEF-mainTentacle_030",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 4,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "customPoseExpr": "",
+  "customNormalizedTimeExpr": "",
+  "customSpeedExpr": "",
+  "customLengthExpr": "",
+  "autoEndOnNoCharactersSeconds": 0,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"","required":false},
+    {"kind":"Vagina","pathOrName":"DEF-clitoris","required":false},
+    {"kind":"Anus","pathOrName":"","required":false},
+    {"kind":"Mouth","pathOrName":"MouseTransform","required":false},
+    {"kind":"LeftHand","pathOrName":"","required":false},
+    {"kind":"RightHand","pathOrName":"","required":false},
+    {"kind":"LeftFoot","pathOrName":"","required":false},
+    {"kind":"RightFoot","pathOrName":"","required":false}
+  ]
+}

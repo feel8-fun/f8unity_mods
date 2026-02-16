@@ -19,6 +19,11 @@ namespace F8HSceneAnimatorStreamer.Discovery
             get { return _sessionActive; }
         }
 
+        public object ActiveHookInstance
+        {
+            get { return _hookInstance; }
+        }
+
         public string ActiveProfileId
         {
             get

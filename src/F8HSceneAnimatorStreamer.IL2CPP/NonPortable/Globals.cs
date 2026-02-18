@@ -2,7 +2,7 @@
 using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 
-namespace UnityRealtimeSkeletonExporter.NonPortable
+namespace F8HSceneAnimatorStreamer.NonPortable
 {
     internal static class Globals
     {

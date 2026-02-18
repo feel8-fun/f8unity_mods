@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -192,10 +191,9 @@ namespace F8HSceneAnimatorStreamer.Profiles
                     {
                         continue;
                     }
-                    IEnumerator iterator = tf.GetEnumerator();
-                    while (iterator.MoveNext())
+                    for (int childIndex = 0; childIndex < tf.childCount; childIndex++)
                     {
-                        Transform child = iterator.Current as Transform;
+                        Transform child = tf.GetChild(childIndex);
                         if (child != null && child.name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                         {
                             children.Add(child);
@@ -340,7 +338,7 @@ namespace F8HSceneAnimatorStreamer.Profiles
 
                     if (expand)
                     {
-                        IEnumerable enumerable = value as IEnumerable;
+                        System.Collections.IEnumerable enumerable = value as System.Collections.IEnumerable;
                         if (enumerable == null || value is string)
                         {
                             continue;

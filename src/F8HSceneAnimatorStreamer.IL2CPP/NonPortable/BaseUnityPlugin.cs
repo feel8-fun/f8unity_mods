@@ -1,7 +1,7 @@
-﻿using BepInEx.Unity.IL2CPP;
+using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 
-namespace UnityRealtimeSkeletonExporter.NonPortable
+namespace F8HSceneAnimatorStreamer.NonPortable
 {
     public class BaseUnityPlugin : BasePlugin
     {

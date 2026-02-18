@@ -1,6 +1,6 @@
 ﻿using Il2CppInterop.Runtime.Attributes;
 
-namespace UnityRealtimeSkeletonExporter.NonPortable
+namespace F8HSceneAnimatorStreamer.NonPortable
 {
     public class HideFromIl2Cpp : HideFromIl2CppAttribute
     {

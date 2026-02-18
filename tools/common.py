@@ -627,6 +627,8 @@ def find_exporter_artifact_dir(backend: str = "mono") -> Path | None:
 def ensure_exporter_artifacts(backend: str = "mono") -> Path:
     existing = find_exporter_artifact_dir(backend)
     if existing is not None:
+        if backend == "il2cpp":
+            _remove_stale_il2cpp_subdir(existing)
         return existing
 
     if backend == "il2cpp":
@@ -638,6 +640,8 @@ def ensure_exporter_artifacts(backend: str = "mono") -> Path:
     if built is None:
         expected = EXPORTER_IL2CPP_DIR if backend == "il2cpp" else EXPORTER_DLL_DIR
         raise SetupError(EXIT_INSTALL_FAILED, f"exporter artifacts not found after build under: {expected}")
+    if backend == "il2cpp":
+        _remove_stale_il2cpp_subdir(built)
     return built
 
 
@@ -659,8 +663,12 @@ def copy_exporter_plugin(
     plugin_dir.mkdir(parents=True, exist_ok=True)
 
     if source_artifact_dir is not None:
+        if backend == "il2cpp":
+            _remove_stale_il2cpp_subdir(source_artifact_dir)
         _copy_tree_contents(source_artifact_dir, plugin_dir)
         _remove_legacy_profile_dirs(plugin_dir)
+        if backend == "il2cpp":
+            _remove_stale_il2cpp_subdir(plugin_dir)
         return plugin_dir
 
     if source_dll is not None:
@@ -671,6 +679,8 @@ def copy_exporter_plugin(
     artifact_dir = ensure_exporter_artifacts(backend)
     _copy_tree_contents(artifact_dir, plugin_dir)
     _remove_legacy_profile_dirs(plugin_dir)
+    if backend == "il2cpp":
+        _remove_stale_il2cpp_subdir(plugin_dir)
     return plugin_dir
 
 
@@ -696,6 +706,14 @@ def _remove_legacy_profile_dirs(plugin_dir: Path) -> None:
         if path.name.lower() != "profiles":
             continue
         shutil.rmtree(path, ignore_errors=True)
+
+
+def _remove_stale_il2cpp_subdir(plugin_dir: Path) -> None:
+    # Previous IL2CPP builds emitted files under a nested `net6.0` directory.
+    # Keep only the flattened output to avoid duplicate plugin discovery.
+    stale = plugin_dir / "net6.0"
+    if stale.is_dir():
+        shutil.rmtree(stale, ignore_errors=True)
 
 
 def resolve_profile_template_path(profile_template_name: str) -> Path:

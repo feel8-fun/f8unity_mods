@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -187,10 +188,21 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         summary["actions"].append({"install_runtime_unity_editor": "skipped"})
 
     if args.cue:
-        cue_path = _install_cinematic_unity_explorer(detection, config, offline=args.offline)
+        cue_path, cue_config_path, cue_config_status = _install_cinematic_unity_explorer(
+            detection, config, offline=args.offline
+        )
         summary["actions"].append({"install_cinematic_unity_explorer": str(cue_path)})
+        summary["actions"].append(
+            {
+                "install_cinematic_unity_explorer_config": {
+                    "path": str(cue_config_path),
+                    "status": cue_config_status,
+                }
+            }
+        )
     else:
         summary["actions"].append({"install_cinematic_unity_explorer": "skipped"})
+        summary["actions"].append({"install_cinematic_unity_explorer_config": "skipped"})
 
     if args.config_manager:
         config_manager_path = _install_configuration_manager(detection, config, offline=args.offline)
@@ -272,7 +284,9 @@ def _install_runtime_unity_editor(detection: DetectionResult, config: SetupConfi
     )
 
 
-def _install_cinematic_unity_explorer(detection: DetectionResult, config: SetupConfig, offline: bool) -> Path:
+def _install_cinematic_unity_explorer(
+    detection: DetectionResult, config: SetupConfig, offline: bool
+) -> tuple[Path, Path, str]:
     release = github_latest_release(config.cue_release_repo, config.timeout_sec)
     asset = select_cue_asset(
         release=release,
@@ -280,7 +294,7 @@ def _install_cinematic_unity_explorer(detection: DetectionResult, config: SetupC
         variant=detection.bepinex_variant,
         overrides=config.asset_regex_overrides,
     )
-    return _download_and_extract_asset(
+    zip_path = _download_and_extract_asset(
         detection.game_root,
         asset_name=str(asset["name"]),
         asset_url=str(asset["browser_download_url"]),
@@ -289,6 +303,8 @@ def _install_cinematic_unity_explorer(detection: DetectionResult, config: SetupC
         offline=offline,
         category="cinematic-unity-explorer",
     )
+    cue_config_path, cue_config_status = _install_cue_config(detection.game_root)
+    return zip_path, cue_config_path, cue_config_status
 
 
 def _install_configuration_manager(detection: DetectionResult, config: SetupConfig, offline: bool) -> Path:
@@ -344,6 +360,86 @@ def _download_and_extract_asset(
     extract_zip(zip_path, game_root)
     _post_extract_fixups(game_root, category, zip_path)
     return zip_path
+
+
+def _install_cue_config(game_root: Path) -> tuple[Path, str]:
+    config_dir = game_root / "BepInEx" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    output_dir = game_root / "BepInEx" / "plugins" / "CinematicUnityExplorer" / "Output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    cfg_path = config_dir / "com.originalnicodr.cinematicunityexplorer.cfg"
+    default_output_path = str(output_dir)
+    dnspy_path = _find_dnspy_path()
+
+    marker = "# Managed by tools/game_setup.py"
+    default_body = "\n".join(
+        [
+            marker,
+            "## Plugin GUID: com.originalnicodr.cinematicunityexplorer",
+            "",
+            "[UnityExplorer]",
+            "CinematicUnityExplorer Toggle = F7",
+            "Hide On Startup = true",
+            "Startup Delay Time = 1",
+            "Target Display = 0",
+            "Force Unlock Mouse = true",
+            "Force Unlock Toggle Key = None",
+            "Disable EventSystem override = false",
+            f"Default Output Path = {default_output_path}",
+            f"dnSpy Path = {dnspy_path}",
+            "Main Navbar Anchor = Top",
+            "Log Unity Debug = false",
+            "Log To Disk = true",
+            "",
+        ]
+    )
+
+    if not cfg_path.exists():
+        cfg_path.write_text(default_body, encoding="utf-8")
+        return cfg_path, "installed"
+
+    existing = cfg_path.read_text(encoding="utf-8", errors="ignore")
+    if marker in existing:
+        cfg_path.write_text(default_body, encoding="utf-8")
+        return cfg_path, "updated_managed"
+
+    updated = existing
+    updated = _upsert_cfg_kv(updated, "Hide On Startup", "true")
+    updated = _upsert_cfg_kv(updated, "Default Output Path", default_output_path)
+    updated = _upsert_cfg_kv(updated, "dnSpy Path", dnspy_path)
+    cfg_path.write_text(updated, encoding="utf-8")
+    return cfg_path, "updated_existing"
+
+
+def _upsert_cfg_kv(text: str, key: str, value: str) -> str:
+    line = f"{key} = {value}"
+    pattern = re.compile(rf"(?m)^{re.escape(key)}\s*=.*$")
+    if pattern.search(text):
+        return pattern.sub(lambda _match: line, text, count=1)
+
+    if "[UnityExplorer]" in text:
+        section_pattern = re.compile(r"(?ms)^\[UnityExplorer\]\s*\n")
+        match = section_pattern.search(text)
+        if match is not None:
+            insert_at = match.end()
+            return text[:insert_at] + line + "\n" + text[insert_at:]
+
+    if text and not text.endswith("\n"):
+        text += "\n"
+    return text + "[UnityExplorer]\n" + line + "\n"
+
+
+def _find_dnspy_path() -> str:
+    candidates = [
+        Path("C:/Program Files/dnspy/dnSpy.exe"),
+        Path("C:/Program Files (x86)/dnspy/dnSpy.exe"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.as_posix()
+    return ""
 
 
 def _post_extract_fixups(game_root: Path, category: str, zip_path: Path) -> None:

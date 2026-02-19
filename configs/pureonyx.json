@@ -1,0 +1,44 @@
+{
+  "_managed_by": "tools/game_setup.py",
+  "id": "pureonyx",
+  "fullName": "Pure-Onyx",
+  "version": "1.0",
+  "processNames": ["pure-onyx"],
+  "hooksStart": [
+    "Eromancer.SexScenePlayer:PreSex",
+    "SexScenePlayer:PreSex",
+    "SexScenePlayer, Assembly-CSharp:PreSex"
+  ],
+  "hooksEnd": [
+    "Eromancer.SexScenePlayer:PostSex",
+    "SexScenePlayer:PostSex",
+    "SexScenePlayer, Assembly-CSharp:PostSex"
+  ],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact Handler children prefix [ID# -> GFX Root/HGFX -> Onyx:Root_M || path exact Handler/SlumsStreetMapData/SpawnedObjects children prefix [ID# -> GFX Root/HGFX -> Police_Girl:Root_M",
+  "maleRootsExpr": "path exact Handler/SlumsStreetMapData/SpawnedObjects children prefix [ID# -> GFX Root/HGFX",
+  "maxFemaleCount": 2,
+  "maxMaleCount": 2,
+  "activeOnly": true,
+  "useRegex": true,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "keypoints": [
+    { "kind": "FemaleRoot", "pathOrName": "", "required": true },
+    { "kind": "MaleRoot", "pathOrName": "", "required": false },
+    { "kind": "MalePenisBase", "pathOrName": ".+:Dong_?1_M$", "required": false },
+    { "kind": "Vagina", "pathOrName": "(Onyx|Police_Girl):Vag_Root$", "required": false },
+    { "kind": "Anus", "pathOrName": "(Onyx|Police_Girl):A_Hole_Root/(Onyx|Police_Girl):A_Hole_Sock$", "required": false },
+    { "kind": "Mouth", "pathOrName": "", "required": false },
+    { "kind": "LeftHand", "pathOrName": "", "required": false },
+    { "kind": "RightHand", "pathOrName": "", "required": false },
+    { "kind": "LeftFoot", "pathOrName": "(Onyx|Police_Girl):ToesEnd_L$", "required": false },
+    { "kind": "RightFoot", "pathOrName": "(Onyx|Police_Girl):ToesEnd_R$", "required": false },
+    { "kind": "LeftBreast", "pathOrName": "(Onyx|Police_Girl):NippleEnd_L$", "required": false },
+    { "kind": "RightBreast", "pathOrName": "(Onyx|Police_Girl):NippleEnd_R$", "required": false }
+  ]
+}

@@ -16,6 +16,7 @@
         public string maleRootsExpr = string.Empty;
         public int maxFemaleCount = 1;
         public int maxMaleCount = 1;
+        public bool activeOnly = true;
         public bool useRegex = true;
         public int poseLayer = 0;
         public string poseLayerName = string.Empty;

@@ -52,7 +52,7 @@ namespace F8HSceneAnimatorStreamer.Profiles
             return result.ToArray();
         }
 
-        public Transform FindByPathOrName(Transform root, string pathOrName, bool useRegex)
+        public Transform FindByPathOrName(Transform root, string pathOrName, bool useRegex, bool activeOnly)
         {
             if (root == null || string.IsNullOrEmpty(pathOrName))
             {
@@ -60,7 +60,7 @@ namespace F8HSceneAnimatorStreamer.Profiles
             }
 
             Transform direct = root.Find(pathOrName);
-            if (direct != null)
+            if (direct != null && (!activeOnly || direct.gameObject.activeInHierarchy))
             {
                 return direct;
             }
@@ -70,6 +70,10 @@ namespace F8HSceneAnimatorStreamer.Profiles
             {
                 Transform tf = all[i];
                 if (tf == null)
+                {
+                    continue;
+                }
+                if (activeOnly && !tf.gameObject.activeInHierarchy)
                 {
                     continue;
                 }

@@ -7,12 +7,19 @@ namespace F8HSceneAnimatorStreamer.Discovery
 {
     internal sealed class ProfileCharacterProvider : MonoBehaviour, ICharacterProvider
     {
+        private const float DiscoveryRetryIntervalSeconds = 0.25f;
+
         private readonly ExpressionEvaluator _evaluator = new ExpressionEvaluator();
 
         private ProfileResolver _resolver;
         private bool _sessionActive;
         private object _hookInstance;
         private string _lastHookMethod = string.Empty;
+        private CharacterInfo[] _cachedCharacters = new CharacterInfo[0];
+        private bool _hasCharacterLock;
+        private float _nextDiscoveryAt;
+        private string _cachedProfileId = string.Empty;
+        private object _cachedHookInstance;
 
         public bool HasActiveSession
         {
@@ -46,6 +53,7 @@ namespace F8HSceneAnimatorStreamer.Discovery
             _hookInstance = hookInstance;
             _lastHookMethod = hookMethod ?? string.Empty;
             _sessionActive = true;
+            ClearCharacterCache();
         }
 
         public void EndSession(string hookMethod)
@@ -53,16 +61,28 @@ namespace F8HSceneAnimatorStreamer.Discovery
             _sessionActive = false;
             _hookInstance = null;
             _lastHookMethod = hookMethod ?? string.Empty;
+            ClearCharacterCache();
         }
 
         public CharacterInfo[] GetActiveCharacters()
         {
             if (!_sessionActive || _resolver == null || _resolver.ActiveProfile == null)
             {
+                ClearCharacterCache();
                 return new CharacterInfo[0];
             }
 
             GameProfile profile = _resolver.ActiveProfile;
+            if (_hasCharacterLock && IsCharacterCacheValid(profile))
+            {
+                return _cachedCharacters;
+            }
+
+            if (Time.unscaledTime < _nextDiscoveryAt)
+            {
+                return _cachedCharacters;
+            }
+
             var characters = new List<CharacterInfo>();
             Transform[] femaleRoots = _evaluator.EvaluateTransforms(_hookInstance, profile.femaleRootsExpr);
             object[] femaleControllers = _evaluator.EvaluateObjects(_hookInstance, profile.femaleControllerExpr);
@@ -84,7 +104,12 @@ namespace F8HSceneAnimatorStreamer.Discovery
                 profile.maxMaleCount,
                 characters);
 
-            return characters.ToArray();
+            _cachedCharacters = characters.ToArray();
+            _cachedProfileId = profile.id ?? string.Empty;
+            _cachedHookInstance = _hookInstance;
+            _hasCharacterLock = _cachedCharacters.Length > 0;
+            _nextDiscoveryAt = Time.unscaledTime + DiscoveryRetryIntervalSeconds;
+            return _cachedCharacters;
         }
 
         private void BuildCharactersForRole(
@@ -95,17 +120,16 @@ namespace F8HSceneAnimatorStreamer.Discovery
             int maxByConfig,
             IList<CharacterInfo> destination)
         {
-            int maxCount = Math.Max(roots.Length, controllers.Length);
-            if (maxByConfig > 0)
+            int candidateCount = Math.Max(roots.Length, controllers.Length);
+            if (candidateCount == 0)
             {
-                maxCount = Math.Min(maxCount, maxByConfig);
-            }
-            if (maxCount == 0)
-            {
-                maxCount = roots.Length > 0 ? roots.Length : controllers.Length;
+                return;
             }
 
-            for (int index = 0; index < maxCount; index++)
+            int maxCount = maxByConfig > 0 ? maxByConfig : candidateCount;
+            int emitted = 0;
+
+            for (int index = 0; index < candidateCount && emitted < maxCount; index++)
             {
                 Transform root = index < roots.Length ? roots[index] : null;
                 object controllerObject = index < controllers.Length ? controllers[index] : null;
@@ -146,6 +170,11 @@ namespace F8HSceneAnimatorStreamer.Discovery
                     continue;
                 }
 
+                if (profile.activeOnly && root != null && !root.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
                 var map = new Dictionary<string, Transform>(StringComparer.OrdinalIgnoreCase);
                 AddKeypoints(profile, role, map, root);
                 if (map.Count == 0)
@@ -177,6 +206,7 @@ namespace F8HSceneAnimatorStreamer.Discovery
                     ProfileId = profile.id,
                     KeypointMap = map
                 });
+                emitted++;
             }
         }
 
@@ -234,7 +264,7 @@ namespace F8HSceneAnimatorStreamer.Discovery
                     continue;
                 }
 
-                Transform found = _evaluator.FindByPathOrName(root, binding.pathOrName, useRegex);
+                Transform found = _evaluator.FindByPathOrName(root, binding.pathOrName, useRegex, profile.activeOnly);
                 if (found != null)
                 {
                     target[key] = found;
@@ -346,7 +376,71 @@ namespace F8HSceneAnimatorStreamer.Discovery
 
             return kind != KeypointKind.FemaleRoot
                 && kind != KeypointKind.Vagina
-                && kind != KeypointKind.Anus;
+                && kind != KeypointKind.Anus
+                && kind != KeypointKind.LeftBreast
+                && kind != KeypointKind.RightBreast;
+        }
+
+        private bool IsCharacterCacheValid(GameProfile profile)
+        {
+            if (!_hasCharacterLock || _cachedCharacters == null || _cachedCharacters.Length == 0)
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(_cachedHookInstance, _hookInstance))
+            {
+                return false;
+            }
+
+            if (!string.Equals(_cachedProfileId, profile.id ?? string.Empty, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _cachedCharacters.Length; i++)
+            {
+                CharacterInfo character = _cachedCharacters[i];
+                if (character == null || character.Root == null)
+                {
+                    return false;
+                }
+
+                if (profile.activeOnly && !character.Root.activeInHierarchy)
+                {
+                    return false;
+                }
+
+                if (character.KeypointMap == null || character.KeypointMap.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (KeyValuePair<string, Transform> kvp in character.KeypointMap)
+                {
+                    Transform tf = kvp.Value;
+                    if (tf == null)
+                    {
+                        return false;
+                    }
+
+                    if (profile.activeOnly && !tf.gameObject.activeInHierarchy)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        private void ClearCharacterCache()
+        {
+            _cachedCharacters = new CharacterInfo[0];
+            _hasCharacterLock = false;
+            _cachedProfileId = string.Empty;
+            _cachedHookInstance = null;
+            _nextDiscoveryAt = 0f;
         }
     }
 }

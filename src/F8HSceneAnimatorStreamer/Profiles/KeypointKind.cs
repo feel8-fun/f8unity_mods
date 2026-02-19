@@ -11,6 +11,8 @@
         LeftHand,
         RightHand,
         LeftFoot,
-        RightFoot
+        RightFoot,
+        LeftBreast,
+        RightBreast
     }
 }

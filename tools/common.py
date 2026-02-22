@@ -752,6 +752,7 @@ def _build_unknown_profile_template() -> dict[str, Any]:
         "customNormalizedTimeExpr": "",
         "customSpeedExpr": "",
         "customLengthExpr": "",
+        "debugDumpFullHierarchy": False,
         "autoEndOnNoCharactersSeconds": 0,
         "keypoints": [
             {"kind": "FemaleRoot", "pathOrName": "", "required": True},
@@ -838,8 +839,6 @@ def install_exporter_config(game_root: Path, detection: DetectionResult) -> tupl
             "[Capture]",
             "TargetFps = 60",
             "PoseKeyStrategy = clip_then_statehash",
-            "DebugDumpToggleKey = F8",
-            "DebugDumpEnabled = false",
             "DebugDumpIncludeInactive = true",
             "",
         ]

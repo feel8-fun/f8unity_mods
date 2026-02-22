@@ -13,8 +13,6 @@ namespace F8HSceneAnimatorStreamer.Config
 
         public static ConfigEntry<int> TargetFps { get; private set; }
         public static ConfigEntry<string> PoseKeyStrategy { get; private set; }
-        public static ConfigEntry<string> DebugDumpToggleKey { get; private set; }
-        public static ConfigEntry<bool> DebugDumpEnabled { get; private set; }
         public static ConfigEntry<bool> DebugDumpIncludeInactive { get; private set; }
 
         public static void Initialize(F8HSceneAnimatorStreamer.NonPortable.BaseUnityPlugin plugin)
@@ -35,10 +33,6 @@ namespace F8HSceneAnimatorStreamer.Config
                 "Target sampling frame rate for hook-active sessions.");
             PoseKeyStrategy = plugin.Config.Bind(capture, "PoseKeyStrategy", "clip_then_statehash",
                 "Pose key naming strategy identifier.");
-            DebugDumpToggleKey = plugin.Config.Bind(capture, "DebugDumpToggleKey", "F8",
-                "Keyboard key used to toggle full-hierarchy debug UDP dump mode at runtime.");
-            DebugDumpEnabled = plugin.Config.Bind(capture, "DebugDumpEnabled", false,
-                "Initial full-hierarchy debug dump mode state.");
             DebugDumpIncludeInactive = plugin.Config.Bind(capture, "DebugDumpIncludeInactive", true,
                 "Whether full-hierarchy debug dump includes inactive transforms.");
         }

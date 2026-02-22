@@ -25,6 +25,7 @@
         public string customNormalizedTimeExpr = string.Empty;
         public string customSpeedExpr = string.Empty;
         public string customLengthExpr = string.Empty;
+        public bool debugDumpFullHierarchy = false;
         public float autoEndOnNoCharactersSeconds = 0f;
         public KeypointBinding[] keypoints = new KeypointBinding[0];
 

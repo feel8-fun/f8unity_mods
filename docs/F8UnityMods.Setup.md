@@ -93,13 +93,13 @@ Runtime capture mode is hook-only:
 
 Full Hierarchy Debug Dump:
 
-- Toggle key is configurable in cfg (`[Capture] DebugDumpToggleKey`, default `F8`).
-- Debug mode can start enabled via cfg (`DebugDumpEnabled = true`) or be toggled in-game.
+- Controlled by profile field `debugDumpFullHierarchy` (optional, default `false` when omitted).
+- Recommended usage is in unknown/custom profile templates (`id = CUSTOM`) as a debug-only switch.
 - While debug mode is ON, exporter sends both:
   - normal stream schema: `unity.keypoints.realtime.v1`
   - full hierarchy schema: `unity.transforms.fullhierarchy.v1`
 - Full hierarchy names use root-relative transform paths and can include inactive nodes
-  (`DebugDumpIncludeInactive = true|false`).
+  (`[Capture] DebugDumpIncludeInactive = true|false` in cfg).
 - This mode can significantly increase UDP traffic due to larger bone counts/chunking.
 
 Live profile editing (no game restart):

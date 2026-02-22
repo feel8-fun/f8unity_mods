@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "AGH",
   "fullName": "Houkago Rinkan Chuudoku",
   "version": "1.0",
@@ -38,6 +38,9 @@
     {"kind":"LeftHand","pathOrName":"bip01 L Finger1Nub","required":false},
     {"kind":"RightHand","pathOrName":"bip01 R Finger1Nub","required":false},
     {"kind":"LeftFoot","pathOrName":"","required":false},
-    {"kind":"RightFoot","pathOrName":"","required":false}
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

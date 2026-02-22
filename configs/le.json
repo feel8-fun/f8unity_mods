@@ -27,6 +27,9 @@
     {"kind":"LeftHand","pathOrName":"Bip_FingerL2_4","required":false},
     {"kind":"RightHand","pathOrName":"Bip_FingerR2_4","required":false},
     {"kind":"LeftFoot","pathOrName":"Bip_FootL","required":false},
-    {"kind":"RightFoot","pathOrName":"Bip_FootR","required":false}
+    {"kind":"RightFoot","pathOrName":"Bip_FootR","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

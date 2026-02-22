@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "DJ",
   "fullName": "Datsui Janken",
   "version": "1.0",
@@ -32,6 +32,9 @@
     {"kind":"LeftHand","pathOrName":"","required":false},
     {"kind":"RightHand","pathOrName":"Right_Index_Tip","required":false},
     {"kind":"LeftFoot","pathOrName":"","required":false},
-    {"kind":"RightFoot","pathOrName":"","required":false}
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

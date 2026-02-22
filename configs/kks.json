@@ -27,6 +27,9 @@
     {"kind":"LeftHand","pathOrName":"cf_j_index04_L","required":false},
     {"kind":"RightHand","pathOrName":"cf_j_index04_R","required":false},
     {"kind":"LeftFoot","pathOrName":"k_f_toeL_00","required":false},
-    {"kind":"RightFoot","pathOrName":"k_f_toeR_00","required":false}
+    {"kind":"RightFoot","pathOrName":"k_f_toeR_00","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

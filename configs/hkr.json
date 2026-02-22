@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "HKR",
   "fullName": "Holy Knight Ricca",
   "version": "1.0",
@@ -38,6 +38,9 @@
     {"kind":"LeftHand","pathOrName":"","required":false},
     {"kind":"RightHand","pathOrName":"","required":false},
     {"kind":"LeftFoot","pathOrName":"","required":false},
-    {"kind":"RightFoot","pathOrName":"","required":false}
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

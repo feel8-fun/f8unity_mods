@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "OT",
   "fullName": "Oedo Trigger",
   "version": "1.0",
@@ -32,6 +32,9 @@
     {"kind":"LeftHand","pathOrName":"DEF-f_index.03.L","required":false},
     {"kind":"RightHand","pathOrName":"DEF-f_index.03.R","required":false},
     {"kind":"LeftFoot","pathOrName":"DEF-toe.L","required":false},
-    {"kind":"RightFoot","pathOrName":"DEF-toe.R","required":false}
+    {"kind":"RightFoot","pathOrName":"DEF-toe.R","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

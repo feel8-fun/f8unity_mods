@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "OA",
   "fullName": "Our Apartment",
   "version": "1.0",
@@ -32,6 +32,9 @@
     {"kind":"LeftHand","pathOrName":"index1.l","required":false},
     {"kind":"RightHand","pathOrName":"index1.r","required":false},
     {"kind":"LeftFoot","pathOrName":"c_toes_thumb1.l","required":false},
-    {"kind":"RightFoot","pathOrName":"c_toes_thumb1.r","required":false}
+    {"kind":"RightFoot","pathOrName":"c_toes_thumb1.r","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

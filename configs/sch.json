@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "SCH",
   "fullName": "Solas City Heroes",
   "version": "1.0",
@@ -30,6 +30,9 @@
     {"kind":"LeftHand","pathOrName":"hand_L","required":false},
     {"kind":"RightHand","pathOrName":"hand_R","required":false},
     {"kind":"LeftFoot","pathOrName":"","required":false},
-    {"kind":"RightFoot","pathOrName":"","required":false}
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "SC",
   "fullName": "Succubus Cafe",
   "version": "1.0",
@@ -27,6 +27,9 @@
     {"kind":"LeftHand","pathOrName":"IndexFinger1_L","required":false},
     {"kind":"RightHand","pathOrName":"IndexFinger1_R","required":false},
     {"kind":"LeftFoot","pathOrName":"BigToe1_L","required":false},
-    {"kind":"RightFoot","pathOrName":"BigToe1_R","required":false}
+    {"kind":"RightFoot","pathOrName":"BigToe1_R","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

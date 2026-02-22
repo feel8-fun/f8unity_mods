@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "SCS",
   "fullName": "Secrossphere",
   "version": "1.0",
@@ -32,6 +32,9 @@
     {"kind":"LeftHand","pathOrName":"a01_J_HitoL_03","required":false},
     {"kind":"RightHand","pathOrName":"a01_J_HitoR_03","required":false},
     {"kind":"LeftFoot","pathOrName":"","required":false},
-    {"kind":"RightFoot","pathOrName":"","required":false}
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

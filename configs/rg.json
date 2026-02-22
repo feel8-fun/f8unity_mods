@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "RG",
   "fullName": "Room Girl",
   "version": "1.0",
@@ -32,6 +32,9 @@
     {"kind":"LeftHand","pathOrName":"cf_J_Hand_Index01_L","required":false},
     {"kind":"RightHand","pathOrName":"cf_J_Hand_Index01_R","required":false},
     {"kind":"LeftFoot","pathOrName":"cf_J_Toes01_R","required":false},
-    {"kind":"RightFoot","pathOrName":"cf_J_Toes01_L","required":false}
+    {"kind":"RightFoot","pathOrName":"cf_J_Toes01_L","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

@@ -1,9 +1,9 @@
-{
+﻿{
   "_managed_by": "tools/game_setup.py",
   "id": "SZHDJL",
-  "fullName": "生殖活動記録",
+  "fullName": "ç”Ÿæ®–æ´»å‹•è¨˜éŒ²",
   "version": "1.0",
-  "processNames": ["生殖活動記録"],
+  "processNames": ["ç”Ÿæ®–æ´»å‹•è¨˜éŒ²"],
   "hooksStart": ["SuzuneControl, Assembly-CSharp:SexStartPlayer"],
   "hooksEnd": ["SuzuneControl, Assembly-CSharp:SexEndPlayer"],
   "hooksObserve": [],
@@ -28,6 +28,9 @@
     { "kind": "LeftHand", "pathOrName": "", "required": false },
     { "kind": "RightHand", "pathOrName": "", "required": false },
     { "kind": "LeftFoot", "pathOrName": "", "required": false },
-    { "kind": "RightFoot", "pathOrName": "", "required": false }
+    { "kind": "RightFoot", "pathOrName": "", "required": false },
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
   ]
 }
+

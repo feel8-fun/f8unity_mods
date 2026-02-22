@@ -1,0 +1,48 @@
+﻿{
+  "id": "RE",
+  "fullName": "RomanticEscapades",
+  "version": "1.0",
+  "processNames": ["RE", "RomanticEscapades"],
+  "hooksStart": [
+    "Game.TouchPlayer:OnEnable",
+    "Game.TouchPlayer, Assembly-CSharp:OnEnable"
+  ],
+  "hooksEnd": [
+    "Game.TouchPlayer:OnDisable",
+    "Game.TouchPlayer, Assembly-CSharp:OnDisable"
+  ],
+  "hooksObserve": [],
+  "controllerType": "Animator",
+  "femaleControllerExpr": "",
+  "maleControllerExpr": "",
+  "femaleRootsExpr": "path exact Launcher/N_AY_Touch_Hero/N_AY_G_Touch/chuniang_neiyi/RootMotion || path exact Launcher/N_DT_Touch_Hero/N_DT_G_Touch/dantong_neiyi/RootMotion || path exact Launcher/N_QS_Touch_Hero/N_QS_G_Touch/qinshi_neiyi/RootMotion || path exact Launcher/N_CN_Touch_Hero/N_CN_G_Touch/cainv_neiyi/RootMotion || path exact Launcher/N_XW_Touch_Hero/N_XW_G_Touch/xiaowei_neiyi/RootMotion || path exact Launcher/N_WN_Touch_Hero/N_WN_G_Touch/wunv_neiyi/RootMotion",
+  "maleRootsExpr": "path exact Launcher/N_AY_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion || path exact Launcher/N_DT_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion || path exact Launcher/N_QS_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion || path exact Launcher/N_CN_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion || path exact Launcher/N_XW_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion || path exact Launcher/N_WN_Touch_Hero/C_Hero_G_Touch/nanzhujue_luoti/RootMotion",
+  "maxFemaleCount": 1,
+  "maxMaleCount": 1,
+  "activeOnly": true,
+  "useRegex": false,
+  "poseLayer": 0,
+  "poseLayerName": "",
+  "rewindUnloop": true,
+  "customPoseExpr": "",
+  "customNormalizedTimeExpr": "",
+  "customSpeedExpr": "",
+  "customLengthExpr": "",
+  "debugDumpFullHierarchy": false,
+  "autoEndOnNoCharactersSeconds": 0,
+  "keypoints": [
+    {"kind":"FemaleRoot","pathOrName":"","required":true},
+    {"kind":"MaleRoot","pathOrName":"","required":false},
+    {"kind":"MalePenisBase","pathOrName":"Bip001/Bip001 Pelvis/d_1","required":false},
+    {"kind":"Vagina","pathOrName":"Bip001/Bip001 Pelvis/pigu_r1","required":false},
+    {"kind":"Anus","pathOrName":"","required":false},
+    {"kind":"Mouth","pathOrName":"","required":false},
+    {"kind":"LeftHand","pathOrName":"","required":false},
+    {"kind":"RightHand","pathOrName":"","required":false},
+    {"kind":"LeftFoot","pathOrName":"","required":false},
+    {"kind":"RightFoot","pathOrName":"","required":false},
+    {"kind":"LeftBreast","pathOrName":"","required":false},
+    {"kind":"RightBreast","pathOrName":"","required":false}
+  ]
+}
+

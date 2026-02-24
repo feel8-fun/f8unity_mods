@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "DJ",
   "fullName": "Datsui Janken",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["DatsuiJanken"],
   "hooksStart": ["CanvasFlag, Assembly-CSharp:MotionFlagCheck"],
   "hooksEnd": ["AnimeManager, Assembly-CSharp:ExitSexScene"],

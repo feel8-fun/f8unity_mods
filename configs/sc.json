@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "SC",
   "fullName": "Succubus Cafe",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["SuccubusCafe"],
   "hooksStart": ["Menu_Function, Assembly-CSharp:LadySexModeEnter"],
   "hooksEnd": ["Menu_Function, Assembly-CSharp:BackToMainMenu"],

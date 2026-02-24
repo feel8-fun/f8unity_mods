@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "RG",
   "fullName": "Room Girl",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["RoomGirl"],
   "hooksStart": ["HScene, Assembly-CSharp:Start"],
   "hooksEnd": ["HScene, Assembly-CSharp:OnDestroy"],

@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "SCH",
   "fullName": "Solas City Heroes",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["Solas City Heroes", "SolasCityHeroes"],
   "hooksStart": ["SexSystem, Assembly-CSharp:StartSex"],
   "hooksEnd": [

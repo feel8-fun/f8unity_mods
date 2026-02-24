@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "LE",
   "fullName": "Last Evil",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["LastEvil"],
   "hooksStart": ["EventSceneFramework, Assembly-CSharp:Init", "AnimCombineEventer, Assembly-CSharp:Set"],
   "hooksEnd": ["EventSceneFramework, Assembly-CSharp:OnClickEnd"],

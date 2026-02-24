@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "PH",
   "fullName": "PlayHome",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["PlayHome64bit"],
   "hooksStart": ["H_Scene, Assembly-CSharp:Awake"],
   "hooksEnd": ["H_Scene, Assembly-CSharp:Exit"],

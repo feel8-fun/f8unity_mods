@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "AC",
   "fullName": "Aicomi",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["Aicomi"],
   "hooksStart": ["H.HScene, Assembly-CSharp:InitializeActors"],
   "hooksEnd": ["H.HScene, Assembly-CSharp:IsNextResult"],

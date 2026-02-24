@@ -3,11 +3,11 @@ from __future__ import annotations
 import dataclasses
 import datetime as _dt
 import json
-import os
 import re
 import shutil
 import struct
 import subprocess
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -22,27 +22,118 @@ EXIT_DOWNLOAD_FAILED = 3
 EXIT_INSTALL_FAILED = 4
 EXIT_BEPINEX_MISMATCH = 5
 
-USER_AGENT = "f8-hscene-animator-streamer-helper"
+USER_AGENT = "f8-skeleton-streamer-helper"
 
-ROOT = Path(__file__).resolve().parents[1]
-PROJECT_CSPROJ = ROOT / "src" / "F8HSceneAnimatorStreamer" / "F8HSceneAnimatorStreamer.csproj"
-PROJECT_IL2CPP_CSPROJ = (
-    ROOT / "src" / "F8HSceneAnimatorStreamer.IL2CPP" / "F8HSceneAnimatorStreamer.IL2CPP.csproj"
+_IS_FROZEN = bool(getattr(sys, "frozen", False))
+
+
+def _detect_resource_root() -> Path:
+    if _IS_FROZEN:
+        meipass = getattr(sys, "_MEIPASS", "")
+        if meipass:
+            return Path(meipass).resolve()
+    return Path(__file__).resolve().parents[1]
+
+
+def _detect_runtime_root() -> Path:
+    if _IS_FROZEN:
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = _detect_resource_root()
+RUNTIME_ROOT = _detect_runtime_root()
+@dataclasses.dataclass(frozen=True)
+class ExporterSpec:
+    key: str
+    project_name: str
+    plugin_dir_name: str
+    managed_by_value: str
+    config_filename: str
+    mono_dll_name: str
+    il2cpp_dll_name: str
+
+    @property
+    def project_csproj(self) -> Path:
+        return ROOT / "src" / self.project_name / f"{self.project_name}.csproj"
+
+    @property
+    def project_il2cpp_csproj(self) -> Path:
+        return ROOT / "src" / f"{self.project_name}.IL2CPP" / f"{self.project_name}.IL2CPP.csproj"
+
+    @property
+    def artifact_mono_dir(self) -> Path:
+        return ROOT / "src" / "bin" / self.project_name / "BepInEx" / "plugins" / self.plugin_dir_name
+
+    @property
+    def artifact_il2cpp_dir(self) -> Path:
+        return ROOT / "src" / "bin" / f"{self.project_name}.IL2CPP" / "BepInEx" / "plugins" / self.plugin_dir_name
+
+    @property
+    def readme_path(self) -> Path:
+        return ROOT / "src" / self.project_name / "README.md"
+
+
+DEFAULT_EXPORTER_SPEC = ExporterSpec(
+    key="default",
+    project_name="F8SkeletonStreamer",
+    plugin_dir_name="F8SkeletonStreamer",
+    managed_by_value="tools/game_setup.py",
+    config_filename="com.feel8.f8-skeleton-streamer.cfg",
+    mono_dll_name="F8SkeletonStreamer.dll",
+    il2cpp_dll_name="F8SkeletonStreamer.IL2CPP.dll",
 )
-EXPORTER_DLL_DIR = (
-    ROOT / "src" / "bin" / "F8HSceneAnimatorStreamer" / "BepInEx" / "plugins" / "F8HSceneAnimatorStreamer"
+
+LIVE2D_EXPORTER_SPEC = ExporterSpec(
+    key="live2d",
+    project_name="F8Live2DStreamer",
+    plugin_dir_name="F8Live2DStreamer",
+    managed_by_value="tools/game_setup.py",
+    config_filename="com.feel8.f8-live2d-streamer.cfg",
+    mono_dll_name="F8Live2DStreamer.dll",
+    il2cpp_dll_name="F8Live2DStreamer.IL2CPP.dll",
 )
-EXPORTER_DLL = EXPORTER_DLL_DIR / "F8HSceneAnimatorStreamer.dll"
-EXPORTER_IL2CPP_DIR = (
-    ROOT
-    / "src"
-    / "bin"
-    / "F8HSceneAnimatorStreamer.IL2CPP"
-    / "BepInEx"
-    / "plugins"
-    / "F8HSceneAnimatorStreamer"
-)
-EXPORTER_README = ROOT / "src" / "F8HSceneAnimatorStreamer" / "README.md"
+
+
+def resolve_exporter_spec(spec: ExporterSpec | None = None) -> ExporterSpec:
+    return spec if spec is not None else DEFAULT_EXPORTER_SPEC
+
+
+def resolve_exporter_spec_by_key(exporter_key: str | None) -> ExporterSpec:
+    return LIVE2D_EXPORTER_SPEC if str(exporter_key or "").lower() == "live2d" else DEFAULT_EXPORTER_SPEC
+
+
+def infer_exporter_key_from_profile_payload(payload: dict[str, Any] | None) -> str:
+    if not isinstance(payload, dict):
+        return "default"
+
+    raw = str(payload.get("streamerType", "") or payload.get("exporterType", "")).strip().lower()
+    if raw in ("live2d", "f8live2dstreamer", "live2dstreamer"):
+        return "live2d"
+    if raw in ("default", "skeleton", "f8skeletonstreamer", "skeletonstreamer"):
+        return "default"
+
+    live2d_markers = (
+        "live2dRootsExpr",
+        "autoDiscoverCubism",
+        "drawableNameIncludeRegex",
+        "drawableNameExcludeRegex",
+        "minBoundsExtent",
+    )
+    for key in live2d_markers:
+        if key in payload:
+            return "live2d"
+
+    return "default"
+
+
+# Backward-compatible constants for existing scripts.
+PROJECT_CSPROJ = DEFAULT_EXPORTER_SPEC.project_csproj
+PROJECT_IL2CPP_CSPROJ = DEFAULT_EXPORTER_SPEC.project_il2cpp_csproj
+EXPORTER_DLL_DIR = DEFAULT_EXPORTER_SPEC.artifact_mono_dir
+EXPORTER_DLL = EXPORTER_DLL_DIR / DEFAULT_EXPORTER_SPEC.mono_dll_name
+EXPORTER_IL2CPP_DIR = DEFAULT_EXPORTER_SPEC.artifact_il2cpp_dir
+EXPORTER_README = DEFAULT_EXPORTER_SPEC.readme_path
 
 
 def _normalize_process_name(value: str) -> str:
@@ -80,10 +171,12 @@ def _load_game_profile_catalog() -> dict[str, dict[str, Any]]:
             continue
 
         game_type = _normalize_process_name(path.stem)
+        exporter_key = infer_exporter_key_from_profile_payload(payload)
         catalog[game_type] = {
             "profile_id": profile_id,
             "profile_template": path.name,
             "aliases": dedup_aliases,
+            "exporter_key": exporter_key,
         }
 
     return catalog
@@ -92,7 +185,7 @@ def _load_game_profile_catalog() -> dict[str, dict[str, Any]]:
 GAME_PROFILE_CATALOG: dict[str, dict[str, Any]] = _load_game_profile_catalog()
 
 PROFILE_MANAGED_BY_KEY = "_managed_by"
-PROFILE_MANAGED_BY_VALUE = "tools/game_setup.py"
+PROFILE_MANAGED_BY_VALUE = DEFAULT_EXPORTER_SPEC.managed_by_value
 PROFILE_FILENAME = "profile.json"
 
 
@@ -118,6 +211,7 @@ class DetectionResult:
     process_name: str
     game_type: str
     profile_id: str
+    exporter_key: str
     unity_version: str
     backend: str
     arch: str
@@ -134,6 +228,7 @@ class DetectionResult:
             "process_name": self.process_name,
             "game_type": self.game_type,
             "profile_id": self.profile_id,
+            "exporter_key": self.exporter_key,
             "unity_version": self.unity_version,
             "backend": self.backend,
             "arch": self.arch,
@@ -172,15 +267,33 @@ def load_setup_config(path: Path | None = None) -> SetupConfig:
         "asset_regex_overrides": {},
     }
 
-    config_path = path or (ROOT / "tools" / "game_setup_config.json")
-    if config_path.exists():
-        with config_path.open("r", encoding="utf-8") as f:
+    config_candidates: list[Path] = []
+    if path is not None:
+        config_candidates = [path]
+    else:
+        config_candidates = [
+            RUNTIME_ROOT / "game_setup_config.json",
+            ROOT / "tools" / "game_setup_config.json",
+            RUNTIME_ROOT / "tools" / "game_setup_config.json",
+        ]
+
+    seen_candidates: set[Path] = set()
+    for candidate in config_candidates:
+        resolved = candidate.expanduser().resolve()
+        if resolved in seen_candidates:
+            continue
+        seen_candidates.add(resolved)
+        if not resolved.exists():
+            continue
+        with resolved.open("r", encoding="utf-8") as f:
             custom = json.load(f)
         defaults.update(custom or {})
+        break
 
     cache_dir = Path(defaults["cache_dir"])
     if not cache_dir.is_absolute():
-        cache_dir = ROOT / cache_dir
+        cache_base = RUNTIME_ROOT if _IS_FROZEN else ROOT
+        cache_dir = cache_base / cache_dir
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     return SetupConfig(
@@ -217,41 +330,107 @@ def normalize_game_target(target: str) -> tuple[Path, Path, Path]:
         game_root = target_path
         exe_path = _find_primary_exe(game_root)
 
-    data_dir = game_root / f"{exe_path.stem}_Data"
-    if not data_dir.exists():
-        possible = sorted(p for p in game_root.glob("*_Data") if p.is_dir())
-        if len(possible) == 1:
-            data_dir = possible[0]
-        else:
-            raise SetupError(
-                EXIT_DETECT_FAILED,
-                f"cannot resolve Unity data directory for {exe_path.name}; expected {data_dir.name}",
-            )
-
+    data_dir = _resolve_data_dir_for_exe(game_root, exe_path)
     return game_root, exe_path, data_dir
 
 
-def _find_primary_exe(game_root: Path) -> Path:
+def _iter_candidate_exes(game_root: Path) -> list[Path]:
     exclusions = (
         "unitycrashhandler",
         "unitycrashhandler64",
         "doorstop",
         "bepinex.preloader",
     )
-    candidates = []
+    candidates: list[Path] = []
     for exe in game_root.glob("*.exe"):
         lower = exe.name.lower()
         if any(lower.startswith(prefix) for prefix in exclusions):
             continue
         if lower == "winhttp.dll":
             continue
-        has_data = (game_root / f"{exe.stem}_Data").is_dir()
-        score = (100 if has_data else 0) + int(exe.stat().st_size / (1024 * 1024))
-        candidates.append((score, exe.name.lower(), exe))
+        candidates.append(exe)
+    return sorted(candidates, key=lambda p: p.name.lower())
+
+
+def _resolve_data_dir_for_exe(game_root: Path, exe_path: Path) -> Path:
+    data_dir = game_root / f"{exe_path.stem}_Data"
+    if data_dir.exists():
+        return data_dir
+
+    possible = sorted(p for p in game_root.glob("*_Data") if p.is_dir())
+    if len(possible) == 1:
+        return possible[0]
+
+    raise SetupError(
+        EXIT_DETECT_FAILED,
+        f"cannot resolve Unity data directory for {exe_path.name}; expected {data_dir.name}",
+    )
+
+
+def _build_detection_result_for_exe(target_input: str, game_root: Path, exe_path: Path) -> DetectionResult:
+    data_dir = _resolve_data_dir_for_exe(game_root, exe_path)
+    process_name = exe_path.stem
+    game_type, profile_id, exporter_key = detect_game_profile(process_name)
+    backend = detect_backend(game_root, data_dir)
+    arch = detect_arch(exe_path)
+    unity_version = detect_unity_version(data_dir)
+    has_bep, bep_variant, bep_ver, bep_major = detect_bepinex(game_root)
+    return DetectionResult(
+        target_input=target_input,
+        game_root=game_root,
+        exe_path=exe_path,
+        data_dir=data_dir,
+        process_name=process_name,
+        game_type=game_type,
+        profile_id=profile_id,
+        exporter_key=exporter_key,
+        unity_version=unity_version,
+        backend=backend,
+        arch=arch,
+        has_bepinex=has_bep,
+        bepinex_variant=bep_variant,
+        bepinex_version=bep_ver,
+        bepinex_major=bep_major,
+    )
+
+
+def _score_detection_result(result: DetectionResult) -> tuple[int, int, int, int, int, int, str]:
+    profile_match = 1 if result.game_type != "unknown" and bool(result.profile_id) else 0
+    exact_data_dir = 1 if result.data_dir.name.lower() == f"{result.exe_path.stem}_data".lower() else 0
+    backend_known = 1 if result.backend != "unknown" else 0
+    arch_known = 1 if result.arch != "unknown" else 0
+    unity_known = 1 if result.unity_version != "unknown" else 0
+    size_mb = int(result.exe_path.stat().st_size / (1024 * 1024))
+    return (
+        profile_match,
+        exact_data_dir,
+        backend_known,
+        arch_known,
+        unity_known,
+        size_mb,
+        result.exe_path.name.lower(),
+    )
+
+
+def _find_primary_exe(game_root: Path) -> Path:
+    candidates = _iter_candidate_exes(game_root)
     if not candidates:
         raise SetupError(EXIT_DETECT_FAILED, f"no candidate game exe found in {game_root}")
-    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    return candidates[0][2]
+    best: Path | None = None
+    best_score: tuple[int, int, int, int, int, int, str] | None = None
+    for exe in candidates:
+        try:
+            result = _build_detection_result_for_exe(str(game_root), game_root, exe)
+        except SetupError:
+            continue
+        score = _score_detection_result(result)
+        if best is None or best_score is None or score > best_score:
+            best = exe
+            best_score = score
+    if best is not None:
+        return best
+    # Fallback to deterministic first candidate if every candidate failed deep detection.
+    return candidates[0]
 
 
 def detect_backend(game_root: Path, data_dir: Path) -> str:
@@ -360,38 +539,53 @@ def _read_windows_file_version(path: Path) -> str:
 
 
 def detect_game(target: str) -> DetectionResult:
-    game_root, exe_path, data_dir = normalize_game_target(target)
-    process_name = exe_path.stem
-    game_type, profile_id = detect_game_profile(process_name)
-    backend = detect_backend(game_root, data_dir)
-    arch = detect_arch(exe_path)
-    unity_version = detect_unity_version(data_dir)
-    has_bep, bep_variant, bep_ver, bep_major = detect_bepinex(game_root)
-    return DetectionResult(
-        target_input=target,
-        game_root=game_root,
-        exe_path=exe_path,
-        data_dir=data_dir,
-        process_name=process_name,
-        game_type=game_type,
-        profile_id=profile_id,
-        unity_version=unity_version,
-        backend=backend,
-        arch=arch,
-        has_bepinex=has_bep,
-        bepinex_variant=bep_variant,
-        bepinex_version=bep_ver,
-        bepinex_major=bep_major,
-    )
+    target_path = Path(target).expanduser().resolve()
+    if not target_path.exists():
+        raise SetupError(EXIT_DETECT_FAILED, f"target does not exist: {target_path}")
+
+    if target_path.is_file():
+        if target_path.suffix.lower() != ".exe":
+            raise SetupError(EXIT_DETECT_FAILED, f"target file is not an exe: {target_path}")
+        return _build_detection_result_for_exe(target, target_path.parent, target_path)
+
+    game_root = target_path
+    exes = _iter_candidate_exes(game_root)
+    if not exes:
+        raise SetupError(EXIT_DETECT_FAILED, f"no candidate game exe found in {game_root}")
+
+    best_result: DetectionResult | None = None
+    best_score: tuple[int, int, int, int, int, int, str] | None = None
+    first_error: SetupError | None = None
+    for exe in exes:
+        try:
+            result = _build_detection_result_for_exe(target, game_root, exe)
+        except SetupError as e:
+            if first_error is None:
+                first_error = e
+            continue
+        score = _score_detection_result(result)
+        if best_result is None or best_score is None or score > best_score:
+            best_result = result
+            best_score = score
+
+    if best_result is not None:
+        return best_result
+    if first_error is not None:
+        raise first_error
+    raise SetupError(EXIT_DETECT_FAILED, f"cannot detect Unity game from {game_root}")
 
 
-def detect_game_profile(process_name: str) -> tuple[str, str]:
+def detect_game_profile(process_name: str) -> tuple[str, str, str]:
     normalized = _normalize_process_name(process_name)
     for game_type, spec in GAME_PROFILE_CATALOG.items():
         aliases = [_normalize_process_name(alias) for alias in spec.get("aliases", [])]
         if normalized in aliases:
-            return game_type, str(spec.get("profile_id", "") or "")
-    return "unknown", ""
+            return (
+                game_type,
+                str(spec.get("profile_id", "") or ""),
+                str(spec.get("exporter_key", "default") or "default"),
+            )
+    return "unknown", "", "auto"
 
 
 def github_latest_release(repo: str, timeout_sec: int) -> dict[str, Any]:
@@ -608,12 +802,13 @@ def extract_zip(zip_path: Path, destination: Path) -> None:
         zf.extractall(destination)
 
 
-def find_exporter_artifact_dir(backend: str = "mono") -> Path | None:
-    search_root = EXPORTER_IL2CPP_DIR if backend == "il2cpp" else EXPORTER_DLL_DIR
+def find_exporter_artifact_dir(backend: str = "mono", spec: ExporterSpec | None = None) -> Path | None:
+    exporter = resolve_exporter_spec(spec)
+    search_root = exporter.artifact_il2cpp_dir if backend == "il2cpp" else exporter.artifact_mono_dir
     if not search_root.exists():
         return None
 
-    expected_name = "F8HSceneAnimatorStreamer.IL2CPP.dll" if backend == "il2cpp" else "F8HSceneAnimatorStreamer.dll"
+    expected_name = exporter.il2cpp_dll_name if backend == "il2cpp" else exporter.mono_dll_name
     direct = search_root / expected_name
     if direct.exists():
         return direct.parent
@@ -624,30 +819,39 @@ def find_exporter_artifact_dir(backend: str = "mono") -> Path | None:
     return None
 
 
-def ensure_exporter_artifacts(backend: str = "mono") -> Path:
-    existing = find_exporter_artifact_dir(backend)
+def ensure_exporter_artifacts(backend: str = "mono", spec: ExporterSpec | None = None) -> Path:
+    exporter = resolve_exporter_spec(spec)
+    existing = find_exporter_artifact_dir(backend, spec=exporter)
     if existing is not None:
         if backend == "il2cpp":
             _remove_stale_il2cpp_subdir(existing)
         return existing
 
-    if backend == "il2cpp":
-        run_command(["dotnet", "build", str(PROJECT_IL2CPP_CSPROJ), "-c", "Release"], cwd=ROOT)
-    else:
-        run_command(["dotnet", "build", str(PROJECT_CSPROJ), "-c", "Release"], cwd=ROOT)
+    if _IS_FROZEN:
+        expected = exporter.artifact_il2cpp_dir if backend == "il2cpp" else exporter.artifact_mono_dir
+        raise SetupError(
+            EXIT_INSTALL_FAILED,
+            f"exporter artifacts were not bundled in executable runtime: {expected}",
+        )
 
-    built = find_exporter_artifact_dir(backend)
+    if backend == "il2cpp":
+        run_command(["dotnet", "build", str(exporter.project_il2cpp_csproj), "-c", "Release"], cwd=ROOT)
+    else:
+        run_command(["dotnet", "build", str(exporter.project_csproj), "-c", "Release"], cwd=ROOT)
+
+    built = find_exporter_artifact_dir(backend, spec=exporter)
     if built is None:
-        expected = EXPORTER_IL2CPP_DIR if backend == "il2cpp" else EXPORTER_DLL_DIR
+        expected = exporter.artifact_il2cpp_dir if backend == "il2cpp" else exporter.artifact_mono_dir
         raise SetupError(EXIT_INSTALL_FAILED, f"exporter artifacts not found after build under: {expected}")
     if backend == "il2cpp":
         _remove_stale_il2cpp_subdir(built)
     return built
 
 
-def ensure_exporter_dll() -> Path:
-    artifact_dir = ensure_exporter_artifacts("mono")
-    candidates = sorted(artifact_dir.glob("F8HSceneAnimatorStreamer*.dll"))
+def ensure_exporter_dll(spec: ExporterSpec | None = None) -> Path:
+    exporter = resolve_exporter_spec(spec)
+    artifact_dir = ensure_exporter_artifacts("mono", spec=exporter)
+    candidates = sorted(artifact_dir.glob(f"{exporter.project_name}*.dll"))
     if not candidates:
         raise SetupError(EXIT_INSTALL_FAILED, f"exporter dll not found in: {artifact_dir}")
     return candidates[0]
@@ -658,8 +862,10 @@ def copy_exporter_plugin(
     source_dll: Path | None = None,
     backend: str = "mono",
     source_artifact_dir: Path | None = None,
+    spec: ExporterSpec | None = None,
 ) -> Path:
-    plugin_dir = game_root / "BepInEx" / "plugins" / "F8HSceneAnimatorStreamer"
+    exporter = resolve_exporter_spec(spec)
+    plugin_dir = game_root / "BepInEx" / "plugins" / exporter.plugin_dir_name
     plugin_dir.mkdir(parents=True, exist_ok=True)
 
     if source_artifact_dir is not None:
@@ -676,7 +882,7 @@ def copy_exporter_plugin(
         _remove_legacy_profile_dirs(plugin_dir)
         return plugin_dir
 
-    artifact_dir = ensure_exporter_artifacts(backend)
+    artifact_dir = ensure_exporter_artifacts(backend, spec=exporter)
     _copy_tree_contents(artifact_dir, plugin_dir)
     _remove_legacy_profile_dirs(plugin_dir)
     if backend == "il2cpp":
@@ -727,12 +933,14 @@ def resolve_profile_template_path(profile_template_name: str) -> Path:
     raise SetupError(EXIT_INSTALL_FAILED, f"profile template not found: {candidates[0]}")
 
 
-def _build_unknown_profile_template() -> dict[str, Any]:
+def _build_unknown_profile_template(spec: ExporterSpec | None = None) -> dict[str, Any]:
+    exporter = resolve_exporter_spec(spec)
     return {
         PROFILE_MANAGED_BY_KEY: PROFILE_MANAGED_BY_VALUE,
         "id": "CUSTOM",
         "fullName": "Custom Profile",
         "version": "1.0",
+        "streamerType": "skeleton",
         "processNames": [],
         "hooksStart": [],
         "hooksEnd": [],
@@ -766,22 +974,46 @@ def _build_unknown_profile_template() -> dict[str, Any]:
             {"kind": "LeftFoot", "pathOrName": "", "required": False},
             {"kind": "RightFoot", "pathOrName": "", "required": False},
         ],
+    } if exporter.key == "default" else {
+        PROFILE_MANAGED_BY_KEY: exporter.managed_by_value,
+        "id": "CUSTOM_LIVE2D",
+        "fullName": "Custom Live2D Profile",
+        "version": "1.0",
+        "streamerType": "live2d",
+        "processNames": [],
+        "hooksStart": [],
+        "hooksEnd": [],
+        "hooksObserve": [],
+        "captureMode": "Auto",
+        "live2dRootsExpr": "",
+        "autoDiscoverCubism": True,
+        "maxModelCount": 0,
+        "activeOnly": True,
+        "drawableNameIncludeRegex": "",
+        "drawableNameExcludeRegex": "",
+        "minBoundsExtent": 0.0001,
     }
 
 
-def _is_managed_profile(path: Path) -> bool:
+def _is_managed_profile(path: Path, spec: ExporterSpec | None = None) -> bool:
+    exporter = resolve_exporter_spec(spec)
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except Exception:
         return False
     return (
         isinstance(payload, dict)
-        and str(payload.get(PROFILE_MANAGED_BY_KEY, "")) == PROFILE_MANAGED_BY_VALUE
+        and str(payload.get(PROFILE_MANAGED_BY_KEY, "")) == exporter.managed_by_value
     )
 
 
-def install_single_profile(game_root: Path, detection: DetectionResult) -> tuple[Path, str, str]:
-    plugin_dir = game_root / "BepInEx" / "plugins" / "F8HSceneAnimatorStreamer"
+def install_single_profile(
+    game_root: Path,
+    detection: DetectionResult,
+    spec: ExporterSpec | None = None,
+) -> tuple[Path, str, str]:
+    exporter = resolve_exporter_spec(spec)
+    plugin_dir = game_root / "BepInEx" / "plugins" / exporter.plugin_dir_name
     plugin_dir.mkdir(parents=True, exist_ok=True)
     profile_path = plugin_dir / PROFILE_FILENAME
 
@@ -789,7 +1021,7 @@ def install_single_profile(game_root: Path, detection: DetectionResult) -> tuple
     if detection.game_type == "unknown" and profile_path.exists():
         return profile_path, "skipped_existing_custom", "existing"
 
-    existing_managed = profile_path.exists() and _is_managed_profile(profile_path)
+    existing_managed = profile_path.exists() and _is_managed_profile(profile_path, spec=exporter)
     if profile_path.exists() and not existing_managed:
         return profile_path, "skipped_existing_custom", "existing"
 
@@ -800,11 +1032,12 @@ def install_single_profile(game_root: Path, detection: DetectionResult) -> tuple
         payload = json.loads(template_path.read_text(encoding="utf-8-sig"))
         if not isinstance(payload, dict):
             raise SetupError(EXIT_INSTALL_FAILED, f"profile template is not an object: {template_path}")
-        payload[PROFILE_MANAGED_BY_KEY] = PROFILE_MANAGED_BY_VALUE
+        payload["streamerType"] = "live2d" if exporter.key == "live2d" else "skeleton"
+        payload[PROFILE_MANAGED_BY_KEY] = exporter.managed_by_value
         status = "updated_managed" if existing_managed else "installed_known"
         source = template_name
     else:
-        payload = _build_unknown_profile_template()
+        payload = _build_unknown_profile_template(spec=exporter)
         status = "updated_managed" if existing_managed else "installed_unknown_template"
         source = "generated"
 
@@ -812,12 +1045,17 @@ def install_single_profile(game_root: Path, detection: DetectionResult) -> tuple
     return profile_path, status, source
 
 
-def install_exporter_config(game_root: Path, detection: DetectionResult) -> tuple[Path, str]:
+def install_exporter_config(
+    game_root: Path,
+    detection: DetectionResult,
+    spec: ExporterSpec | None = None,
+) -> tuple[Path, str]:
+    exporter = resolve_exporter_spec(spec)
     config_dir = game_root / "BepInEx" / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
-    cfg_path = config_dir / "com.feel8.f8-hscene-animator-streamer.cfg"
+    cfg_path = config_dir / exporter.config_filename
 
-    marker = "# Managed by tools/game_setup.py"
+    marker = f"# Managed by {exporter.managed_by_value}"
     if cfg_path.exists():
         existing = cfg_path.read_text(encoding="utf-8", errors="ignore")
         if marker not in existing:
@@ -825,24 +1063,45 @@ def install_exporter_config(game_root: Path, detection: DetectionResult) -> tupl
 
     profile_id = detection.profile_id or "unknown"
 
-    text = "\n".join(
-        [
-            marker,
-            f"# Auto profile: {profile_id}",
-            f"# Process name: {detection.process_name}",
-            "",
-            "[Network]",
-            "SkeletonHost = 127.0.0.1",
-            "SkeletonPort = 39540",
-            "MaxUdpPayloadBytes = 1200",
-            "",
-            "[Capture]",
-            "TargetFps = 60",
-            "PoseKeyStrategy = clip_then_statehash",
-            "DebugDumpIncludeInactive = true",
-            "",
-        ]
-    )
+    if exporter.key == "default":
+        text = "\n".join(
+            [
+                marker,
+                f"# Auto profile: {profile_id}",
+                f"# Process name: {detection.process_name}",
+                "",
+                "[Network]",
+                "SkeletonHost = 127.0.0.1",
+                "SkeletonPort = 39540",
+                "MaxUdpPayloadBytes = 1200",
+                "",
+                "[Capture]",
+                "TargetFps = 60",
+                "PoseKeyStrategy = clip_then_statehash",
+                "DebugDumpIncludeInactive = true",
+                "",
+            ]
+        )
+    else:
+        text = "\n".join(
+            [
+                marker,
+                f"# Auto profile: {profile_id}",
+                f"# Process name: {detection.process_name}",
+                "",
+                "[Network]",
+                "Live2DHost = 127.0.0.1",
+                "Live2DPort = 39550",
+                "MaxUdpPayloadBytes = 1200",
+                "",
+                "[Capture]",
+                "TargetFps = 60",
+                "CaptureMode = Auto",
+                "DiscoveryIntervalMs = 1000",
+                "DebugLogDiscovery = false",
+                "",
+            ]
+        )
     cfg_path.write_text(text, encoding="utf-8")
     return cfg_path, "installed"
 
@@ -893,9 +1152,10 @@ def build_cached_asset_path(cache_dir: Path, category: str, name: str) -> Path:
     return cache_dir / category / safe_filename(name)
 
 
-def find_exporter_dll() -> Path | None:
-    artifact_dir = find_exporter_artifact_dir("mono")
+def find_exporter_dll(spec: ExporterSpec | None = None) -> Path | None:
+    exporter = resolve_exporter_spec(spec)
+    artifact_dir = find_exporter_artifact_dir("mono", spec=exporter)
     if artifact_dir is None:
         return None
-    candidates = sorted(artifact_dir.glob("F8HSceneAnimatorStreamer*.dll"))
+    candidates = sorted(artifact_dir.glob(f"{exporter.project_name}*.dll"))
     return candidates[0] if candidates else None

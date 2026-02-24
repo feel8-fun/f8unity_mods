@@ -5,10 +5,11 @@ import shutil
 import zipfile
 
 from common import (
+    DEFAULT_EXPORTER_SPEC,
     EXIT_INSTALL_FAILED,
-    EXPORTER_README,
-    PROJECT_CSPROJ,
+    LIVE2D_EXPORTER_SPEC,
     ROOT,
+    ExporterSpec,
     SetupError,
     copy_exporter_plugin,
     detect_game,
@@ -19,88 +20,146 @@ from common import (
 )
 
 
-def cmd_build(_: argparse.Namespace) -> None:
-    run_command(["dotnet", "build", str(PROJECT_CSPROJ), "-c", "Release"], cwd=ROOT)
-    dll = find_exporter_dll()
-    print_json(
-        {
-            "action": "build",
-            "status": "ok",
-            "dll": str(dll) if dll else None,
-            "exists": dll is not None and dll.exists(),
-        }
-    )
+def _normalize_exporter_key(value: str | None) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in ("default", "skeleton", "f8skeletonstreamer", "skeletonstreamer"):
+        return "skeleton"
+    if raw in ("live2d", "f8live2dstreamer", "live2dstreamer"):
+        return "live2d"
+    if raw in ("both", "all"):
+        return "both"
+    return "skeleton"
+
+
+def _resolve_specs(exporter_key: str) -> list[ExporterSpec]:
+    key = _normalize_exporter_key(exporter_key)
+    if key == "both":
+        return [DEFAULT_EXPORTER_SPEC, LIVE2D_EXPORTER_SPEC]
+    if key == "live2d":
+        return [LIVE2D_EXPORTER_SPEC]
+    return [DEFAULT_EXPORTER_SPEC]
+
+
+def cmd_build(args: argparse.Namespace) -> None:
+    rows: list[dict[str, object]] = []
+    for spec in _resolve_specs(args.exporter):
+        run_command(["dotnet", "build", str(spec.project_csproj), "-c", "Release"], cwd=ROOT)
+        dll = find_exporter_dll(spec=spec)
+        rows.append(
+            {
+                "exporter": spec.key,
+                "project": spec.project_name,
+                "dll": str(dll) if dll else None,
+                "exists": dll is not None and dll.exists(),
+            }
+        )
+
+    print_json({"action": "build", "status": "ok", "results": rows})
 
 
 def cmd_package(args: argparse.Namespace) -> None:
-    if args.build_first:
-        run_command(["dotnet", "build", str(PROJECT_CSPROJ), "-c", "Release"], cwd=ROOT)
-    artifact_dir = ensure_exporter_artifacts("mono")
+    rows: list[dict[str, object]] = []
+    for spec in _resolve_specs(args.exporter):
+        if args.build_first:
+            run_command(["dotnet", "build", str(spec.project_csproj), "-c", "Release"], cwd=ROOT)
+        artifact_dir = ensure_exporter_artifacts("mono", spec=spec)
 
-    dist_dir = ROOT / "dist" / "F8HSceneAnimatorStreamer"
-    staging = dist_dir / "_staging"
-    zip_path = dist_dir / "F8HSceneAnimatorStreamer.zip"
+        dist_dir = ROOT / "dist" / spec.project_name
+        staging = dist_dir / "_staging"
+        zip_path = dist_dir / f"{spec.project_name}.zip"
 
-    if staging.exists():
-        shutil.rmtree(staging)
-    staging.mkdir(parents=True, exist_ok=True)
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True, exist_ok=True)
 
-    copy_exporter_plugin(staging, backend="mono", source_artifact_dir=artifact_dir)
-    if EXPORTER_README.exists():
-        shutil.copy2(EXPORTER_README, staging / "README.F8HSceneAnimatorStreamer.md")
+        copy_exporter_plugin(staging, backend="mono", source_artifact_dir=artifact_dir, spec=spec)
+        if spec.readme_path.exists():
+            shutil.copy2(spec.readme_path, staging / f"README.{spec.project_name}.md")
 
-    if zip_path.exists():
-        zip_path.unlink()
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path in staging.rglob("*"):
-            if path.is_file():
-                zf.write(path, path.relative_to(staging))
+        if zip_path.exists():
+            zip_path.unlink()
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path in staging.rglob("*"):
+                if path.is_file():
+                    zf.write(path, path.relative_to(staging))
 
-    print_json(
-        {
-            "action": "package",
-            "status": "ok",
-            "zip": str(zip_path),
-            "bytes": zip_path.stat().st_size,
-        }
-    )
+        rows.append(
+            {
+                "exporter": spec.key,
+                "project": spec.project_name,
+                "zip": str(zip_path),
+                "bytes": zip_path.stat().st_size,
+            }
+        )
+
+    print_json({"action": "package", "status": "ok", "results": rows})
 
 
 def cmd_install_local(args: argparse.Namespace) -> None:
     detection = detect_game(args.game)
     if detection.backend == "unknown":
         raise SetupError(EXIT_INSTALL_FAILED, "target is not a recognized Unity game directory")
-    artifact_dir = ensure_exporter_artifacts(detection.backend)
-    installed = copy_exporter_plugin(
-        detection.game_root,
-        backend=detection.backend,
-        source_artifact_dir=artifact_dir,
-    )
+
+    rows: list[dict[str, object]] = []
+    for spec in _resolve_specs(args.exporter):
+        artifact_dir = ensure_exporter_artifacts(detection.backend, spec=spec)
+        installed = copy_exporter_plugin(
+            detection.game_root,
+            backend=detection.backend,
+            source_artifact_dir=artifact_dir,
+            spec=spec,
+        )
+        rows.append(
+            {
+                "exporter": spec.key,
+                "project": spec.project_name,
+                "installed_plugin_dir": str(installed),
+            }
+        )
+
     print_json(
         {
             "action": "install-local",
             "status": "ok",
             "game_root": str(detection.game_root),
             "backend": detection.backend,
-            "installed_plugin_dir": str(installed),
+            "results": rows,
         }
     )
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Build and package F8HSceneAnimatorStreamer")
+    parser = argparse.ArgumentParser(description="Build and package F8 exporters")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_build = sub.add_parser("build", help="Build exporter in Release mode")
+    p_build.add_argument(
+        "--exporter",
+        default="skeleton",
+        choices=("skeleton", "default", "live2d", "both"),
+        help="Select build target exporter.",
+    )
     p_build.set_defaults(func=cmd_build)
 
     p_package = sub.add_parser("package", help="Create distributable zip")
     p_package.add_argument("--no-build-first", dest="build_first", action="store_false")
+    p_package.add_argument(
+        "--exporter",
+        default="skeleton",
+        choices=("skeleton", "default", "live2d", "both"),
+        help="Select package target exporter.",
+    )
     p_package.set_defaults(build_first=True)
     p_package.set_defaults(func=cmd_package)
 
     p_install = sub.add_parser("install-local", help="Install plugin into a local game directory")
     p_install.add_argument("--game", required=True, help="Path to game folder or game exe")
+    p_install.add_argument(
+        "--exporter",
+        default="skeleton",
+        choices=("skeleton", "default", "live2d", "both"),
+        help="Select install target exporter.",
+    )
     p_install.set_defaults(func=cmd_install_local)
 
     return parser

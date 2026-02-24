@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "AGH",
   "fullName": "Houkago Rinkan Chuudoku",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["AGH"],
   "hooksStart": [
     "FH_AnimeController, Assembly-CSharp:Start",

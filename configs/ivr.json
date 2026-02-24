@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "IVR",
   "fullName": "Itazura VR",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["ItazuraVR"],
   "hooksStart": ["CharMale,Assembly-CSharp:LoadMale"],
   "hooksEnd": ["CharMale,Assembly-CSharp:DeleteMale"],

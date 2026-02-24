@@ -3,6 +3,7 @@
   "id": "pureonyx",
   "fullName": "Pure-Onyx",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["pure-onyx"],
   "hooksStart": [
     "Eromancer.SexScenePlayer:PreSex",

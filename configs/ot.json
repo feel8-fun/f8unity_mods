@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "OT",
   "fullName": "Oedo Trigger",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["VR_OedoTrigger"],
   "hooksStart": ["CQCDirection, NKAssets:PlayCQC"],
   "hooksEnd": ["GalleryController, NKAssets:EndGallery"],

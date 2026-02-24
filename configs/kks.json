@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "KKS",
   "fullName": "Koikatu Sunshine",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["KoikatuSunshine", "KoikatsuSunshine", "Koikatu", "Koikatsu Party"],
   "hooksStart": ["HFlag, Assembly-CSharp:Start"],
   "hooksEnd": ["HSprite, Assembly-CSharp:OnClickHSceneEnd", "HSprite, Assembly-CSharp:OnClickTrespassing"],

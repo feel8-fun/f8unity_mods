@@ -1,9 +1,10 @@
-﻿{
+{
   "_managed_by": "tools/game_setup.py",
   "id": "SZHDJL",
-  "fullName": "ç”Ÿæ®–æ´»å‹•è¨˜éŒ²",
+  "fullName": "生殖活動記録",
   "version": "1.0",
-  "processNames": ["ç”Ÿæ®–æ´»å‹•è¨˜éŒ²"],
+  "streamerType": "skeleton",
+  "processNames": ["生殖活動記録"],
   "hooksStart": ["SuzuneControl, Assembly-CSharp:SexStartPlayer"],
   "hooksEnd": ["SuzuneControl, Assembly-CSharp:SexEndPlayer"],
   "hooksObserve": [],

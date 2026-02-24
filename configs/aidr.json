@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "AIDR",
   "fullName": "AI-deal-Rays",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["AIdealRaysR18"],
   "hooksStart": ["EventManager, Assembly-CSharp:ActiveHEvent"],
   "hooksEnd": ["EventManager, Assembly-CSharp:EventFinish"],

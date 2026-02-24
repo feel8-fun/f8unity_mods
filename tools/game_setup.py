@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -24,12 +26,14 @@ from common import (
     ensure_exporter_artifacts,
     extract_zip,
     github_latest_release,
+    infer_exporter_key_from_profile_payload,
     install_single_profile,
     install_exporter_config,
     load_setup_config,
     log,
     print_json,
     remove_existing_install,
+    resolve_exporter_spec_by_key,
     select_cue_asset,
     select_config_manager_asset,
     select_bepinex_be_il2cpp_asset,
@@ -38,6 +42,96 @@ from common import (
     select_universal_unity_demosaics_asset,
     download_with_retries,
 )
+
+
+def _normalize_exporter_flag(value: str | None) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in ("live2d", "f8live2dstreamer", "live2dstreamer"):
+        return "live2d"
+    if raw in ("skeleton", "default", "f8skeletonstreamer", "skeletonstreamer"):
+        return "default"
+    return "auto"
+
+
+def _resolve_install_exporter_key(
+    detection: DetectionResult,
+    forced: str | None,
+    game_root: Path | None = None,
+) -> str:
+    selected = _normalize_exporter_flag(forced)
+    if selected in ("default", "live2d"):
+        return selected
+    if detection.exporter_key in ("default", "live2d"):
+        return detection.exporter_key
+
+    if game_root is not None:
+        inferred = _infer_exporter_from_existing_profiles(game_root)
+        if inferred in ("default", "live2d"):
+            return inferred
+
+    return "default"
+
+
+def _infer_exporter_from_existing_profiles(game_root: Path) -> str:
+    candidates = [
+        ("live2d", game_root / "BepInEx" / "plugins" / "F8Live2DStreamer" / "profile.json"),
+        ("default", game_root / "BepInEx" / "plugins" / "F8SkeletonStreamer" / "profile.json"),
+    ]
+    for fallback_key, path in candidates:
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        except Exception:
+            continue
+        inferred = infer_exporter_key_from_profile_payload(payload)
+        if inferred in ("default", "live2d"):
+            return inferred
+        return fallback_key
+    return ""
+
+
+_PROMPT_ABORT_WORDS = {"q", "quit", "exit"}
+
+
+def _is_interactive_session(args: argparse.Namespace) -> bool:
+    if bool(getattr(args, "non_interactive", False)):
+        return False
+    if bool(getattr(args, "interactive", False)):
+        return True
+    return bool(getattr(sys.stdin, "isatty", lambda: False)())
+
+
+def _prompt_target_path() -> str:
+    while True:
+        try:
+            raw = input("Enter game path (.exe or game folder), or 'q' to abort: ").strip().strip('"')
+        except EOFError as e:
+            raise SetupError(EXIT_DETECT_FAILED, "interactive input unavailable while reading game path") from e
+        if raw.lower() in _PROMPT_ABORT_WORDS:
+            raise SetupError(EXIT_DETECT_FAILED, "install aborted by user")
+        if not raw:
+            print("Path is empty. Please try again.")
+            continue
+        candidate = Path(raw).expanduser()
+        if candidate.exists():
+            return raw
+        print(f"Path does not exist: {candidate}")
+
+
+def _prompt_exporter_choice() -> str:
+    while True:
+        try:
+            raw = input("Unknown game. Install which exporter? [1] skeleton [2] live2d (or q): ").strip().lower()
+        except EOFError as e:
+            raise SetupError(EXIT_DETECT_FAILED, "interactive input unavailable while reading exporter choice") from e
+        if raw in _PROMPT_ABORT_WORDS:
+            raise SetupError(EXIT_DETECT_FAILED, "install aborted by user")
+        if raw in ("1", "s", "skeleton", "default"):
+            return "default"
+        if raw in ("2", "l", "live2d"):
+            return "live2d"
+        print("Invalid choice. Enter 1 for skeleton or 2 for live2d.")
 
 
 def _build_install_plan(
@@ -84,35 +178,66 @@ def _build_install_plan(
     return {"actions": actions, "blocking_errors": blocking}
 
 
-def cmd_detect(args: argparse.Namespace, config: SetupConfig) -> None:
+def run_detect(target: str, config: SetupConfig) -> dict[str, Any]:
     _ = config
-    detection = detect_game(args.target)
-    print_json(detection.to_public_dict())
+    detection = detect_game(target)
+    return detection.to_public_dict()
 
 
-def cmd_diagnose(args: argparse.Namespace, config: SetupConfig) -> None:
+def run_diagnose(
+    target: str,
+    config: SetupConfig,
+    *,
+    exporter: str = "auto",
+    force_reinstall: bool = False,
+    skip_exporter: bool = False,
+    rue: bool = False,
+    cue: bool = False,
+    config_manager: bool = False,
+    uud: bool = False,
+    offline: bool = False,
+) -> dict[str, Any]:
     _ = config
-    detection = detect_game(args.target)
+    detection = detect_game(target)
+    selected_exporter_key = _resolve_install_exporter_key(detection, exporter, detection.game_root)
+    selected_spec = resolve_exporter_spec_by_key(selected_exporter_key)
     plan = _build_install_plan(
         detection,
-        args.force_reinstall,
-        args.skip_exporter,
-        args.rue,
-        args.cue,
-        args.config_manager,
-        args.uud,
+        force_reinstall,
+        skip_exporter,
+        rue,
+        cue,
+        config_manager,
+        uud,
     )
-    print_json(
-        {
-            "detection": detection.to_public_dict(),
-            "plan": plan,
-            "offline": args.offline,
-        }
-    )
+    return {
+        "detection": detection.to_public_dict(),
+        "selected_exporter": {
+            "key": selected_exporter_key,
+            "project_name": selected_spec.project_name,
+            "plugin_dir": selected_spec.plugin_dir_name,
+            "config_filename": selected_spec.config_filename,
+        },
+        "plan": plan,
+        "offline": offline,
+    }
 
 
-def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
-    detection = detect_game(args.target)
+def run_install(
+    target: str,
+    config: SetupConfig,
+    *,
+    exporter: str = "auto",
+    force_reinstall: bool = False,
+    rue: bool = False,
+    cue: bool = False,
+    config_manager: bool = False,
+    uud: bool = False,
+    skip_exporter: bool = False,
+    offline: bool = False,
+    interaction_meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    detection = detect_game(target)
     if detection.backend == "unknown":
         raise SetupError(EXIT_DETECT_FAILED, "cannot install: backend is unknown")
     if detection.arch == "unknown":
@@ -123,13 +248,36 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         "process_name": detection.process_name,
         "game_type": detection.game_type,
         "profile_id": detection.profile_id,
+        "detected_exporter_key": detection.exporter_key,
         "backend": detection.backend,
         "arch": detection.arch,
         "actions": [],
+        "interaction_used": False,
+        "interactive_decisions": {
+            "target_prompted": False,
+            "exporter_prompted": False,
+            "exporter_selected": None,
+        },
+    }
+    if isinstance(interaction_meta, dict):
+        summary["interaction_used"] = bool(interaction_meta.get("interaction_used", False))
+        summary["interactive_decisions"] = {
+            "target_prompted": bool(interaction_meta.get("target_prompted", False)),
+            "exporter_prompted": bool(interaction_meta.get("exporter_prompted", False)),
+            "exporter_selected": interaction_meta.get("exporter_selected"),
+        }
+
+    selected_exporter_key = _resolve_install_exporter_key(detection, exporter, detection.game_root)
+    exporter_spec = resolve_exporter_spec_by_key(selected_exporter_key)
+    summary["selected_exporter"] = {
+        "key": selected_exporter_key,
+        "project_name": exporter_spec.project_name,
+        "plugin_dir": exporter_spec.plugin_dir_name,
+        "config_filename": exporter_spec.config_filename,
     }
 
     if detection.has_bepinex and not bepinex_variant_matches_backend(detection.backend, detection.bepinex_variant):
-        if not args.force_reinstall:
+        if not force_reinstall:
             raise SetupError(
                 EXIT_BEPINEX_MISMATCH,
                 f"existing BepInEx variant '{detection.bepinex_variant}' mismatches backend '{detection.backend}', "
@@ -138,23 +286,32 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         backup_dir = backup_existing_install(detection.game_root)
         remove_existing_install(detection.game_root)
         summary["actions"].append({"backup_existing_bepinex": str(backup_dir)})
-        detection = _install_bepinex(detection, config, offline=args.offline)
+        detection = _install_bepinex(detection, config, offline=offline)
         summary["actions"].append({"install_bepinex": "reinstalled"})
     elif not detection.has_bepinex:
-        detection = _install_bepinex(detection, config, offline=args.offline)
+        detection = _install_bepinex(detection, config, offline=offline)
         summary["actions"].append({"install_bepinex": "installed"})
     else:
         summary["actions"].append({"install_bepinex": "skipped_existing"})
 
-    if not args.skip_exporter:
-        artifact_dir = ensure_exporter_artifacts(detection.backend)
+    if not skip_exporter:
+        artifact_dir = ensure_exporter_artifacts(detection.backend, spec=exporter_spec)
         installed = copy_exporter_plugin(
             detection.game_root,
             backend=detection.backend,
             source_artifact_dir=artifact_dir,
+            spec=exporter_spec,
         )
-        config_path, config_status = install_exporter_config(detection.game_root, detection)
-        profile_path, profile_status, profile_source = install_single_profile(detection.game_root, detection)
+        config_path, config_status = install_exporter_config(
+            detection.game_root,
+            detection,
+            spec=exporter_spec,
+        )
+        profile_path, profile_status, profile_source = install_single_profile(
+            detection.game_root,
+            detection,
+            spec=exporter_spec,
+        )
         summary["actions"].append(
             {
                 "install_exporter": {
@@ -181,15 +338,15 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         summary["actions"].append({"install_exporter": "skipped"})
         summary["actions"].append({"install_profile": "skipped"})
 
-    if args.rue:
-        rue_path = _install_runtime_unity_editor(detection, config, offline=args.offline)
+    if rue:
+        rue_path = _install_runtime_unity_editor(detection, config, offline=offline)
         summary["actions"].append({"install_runtime_unity_editor": str(rue_path)})
     else:
         summary["actions"].append({"install_runtime_unity_editor": "skipped"})
 
-    if args.cue:
+    if cue:
         cue_path, cue_config_path, cue_config_status = _install_cinematic_unity_explorer(
-            detection, config, offline=args.offline
+            detection, config, offline=offline
         )
         summary["actions"].append({"install_cinematic_unity_explorer": str(cue_path)})
         summary["actions"].append(
@@ -204,19 +361,95 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
         summary["actions"].append({"install_cinematic_unity_explorer": "skipped"})
         summary["actions"].append({"install_cinematic_unity_explorer_config": "skipped"})
 
-    if args.config_manager:
-        config_manager_path = _install_configuration_manager(detection, config, offline=args.offline)
+    if config_manager:
+        config_manager_path = _install_configuration_manager(detection, config, offline=offline)
         summary["actions"].append({"install_configuration_manager": str(config_manager_path)})
     else:
         summary["actions"].append({"install_configuration_manager": "skipped"})
 
-    if args.uud:
-        uud_path = _install_universal_unity_demosaics(detection, config, offline=args.offline)
+    if uud:
+        uud_path = _install_universal_unity_demosaics(detection, config, offline=offline)
         summary["actions"].append({"install_universal_unity_demosaics": str(uud_path)})
     else:
         summary["actions"].append({"install_universal_unity_demosaics": "skipped"})
 
-    print_json(summary)
+    return summary
+
+
+def cmd_detect(args: argparse.Namespace, config: SetupConfig) -> None:
+    print_json(run_detect(args.target, config))
+
+
+def cmd_diagnose(args: argparse.Namespace, config: SetupConfig) -> None:
+    print_json(
+        run_diagnose(
+            target=args.target,
+            config=config,
+            exporter=args.exporter,
+            force_reinstall=args.force_reinstall,
+            skip_exporter=args.skip_exporter,
+            rue=args.rue,
+            cue=args.cue,
+            config_manager=args.config_manager,
+            uud=args.uud,
+            offline=args.offline,
+        )
+    )
+
+
+def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
+    interactive_enabled = _is_interactive_session(args)
+    interaction_meta: dict[str, Any] = {
+        "interaction_used": False,
+        "target_prompted": False,
+        "exporter_prompted": False,
+        "exporter_selected": None,
+    }
+
+    target = str(args.target or "").strip()
+    if not target:
+        if not interactive_enabled:
+            raise SetupError(
+                EXIT_DETECT_FAILED,
+                "missing --target in non-interactive mode; pass --target <game exe or folder>",
+            )
+        log("interactive: --target not provided, prompting for game path")
+        target = _prompt_target_path()
+        interaction_meta["interaction_used"] = True
+        interaction_meta["target_prompted"] = True
+
+    exporter = args.exporter
+    if exporter == "auto":
+        detection = detect_game(target)
+        needs_choice = detection.game_type == "unknown" or not str(detection.profile_id or "").strip()
+        if needs_choice:
+            if not interactive_enabled:
+                raise SetupError(
+                    EXIT_DETECT_FAILED,
+                    "unknown game profile in non-interactive mode; pass --exporter skeleton or --exporter live2d",
+                )
+            log("interactive: game profile unknown, prompting for exporter choice")
+            exporter = _prompt_exporter_choice()
+            interaction_meta["interaction_used"] = True
+            interaction_meta["exporter_prompted"] = True
+            interaction_meta["exporter_selected"] = exporter
+            log(f"interactive: selected exporter '{exporter}'")
+
+    print_json(
+        run_install(
+            target=target,
+            config=config,
+            exporter=exporter,
+            force_reinstall=args.force_reinstall,
+            rue=args.rue,
+            cue=args.cue,
+            config_manager=args.config_manager,
+            uud=args.uud,
+            skip_exporter=args.skip_exporter,
+            offline=args.offline,
+            interaction_meta=interaction_meta,
+        )
+    )
 
 
 def _install_bepinex(detection: DetectionResult, config: SetupConfig, offline: bool) -> DetectionResult:
@@ -582,6 +815,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_diag = sub.add_parser("diagnose", help="Show what install would do without mutating files")
     p_diag.add_argument("--target", required=True, help="Path to game exe or game folder")
+    p_diag.add_argument(
+        "--exporter",
+        default="auto",
+        choices=["auto", "skeleton", "live2d"],
+        help="Exporter selection strategy. auto = infer from profile template.",
+    )
     p_diag.add_argument("--force-reinstall", action="store_true", help="Assume force reinstall behavior in plan")
     p_diag.add_argument("--rue", action="store_true", help="Also install RuntimeUnityEditor")
     p_diag.add_argument("--cue", action="store_true", help="Also install CinematicUnityExplorer")
@@ -598,7 +837,24 @@ def build_parser() -> argparse.ArgumentParser:
             "(use --rue/--cue/--config-manager/--uud for optional plugins)"
         ),
     )
-    p_install.add_argument("--target", required=True, help="Path to game exe or game folder")
+    p_install.add_argument("--target", help="Path to game exe or game folder")
+    p_install.add_argument(
+        "--exporter",
+        default="auto",
+        choices=["auto", "skeleton", "live2d"],
+        help="Exporter selection strategy. auto = infer from profile template.",
+    )
+    interactive_group = p_install.add_mutually_exclusive_group()
+    interactive_group.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Force interactive prompts for missing install inputs.",
+    )
+    interactive_group.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Disable prompts and fail fast when required inputs are missing.",
+    )
     p_install.add_argument("--force-reinstall", action="store_true", help="Replace existing mismatched BepInEx")
     p_install.add_argument("--rue", action="store_true", help="Also install RuntimeUnityEditor")
     p_install.add_argument("--cue", action="store_true", help="Also install CinematicUnityExplorer")

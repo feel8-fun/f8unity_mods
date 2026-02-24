@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "VRK",
   "fullName": "VR Kanojo",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["VR_Kanojo"],
   "hooksStart": ["VK_H_Houshi_Sonyu, Assembly-CSharp:Start"],
   "hooksEnd": ["VK_H_Houshi_Sonyu, Assembly-CSharp:OnDestroy"],

@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "SIH",
   "fullName": "Summer In Heat",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["SummerInHeat"],
   "hooksStart": [
     "FH_Controller, Assembly-CSharp:Start_Method",

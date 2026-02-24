@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "HS2",
   "fullName": "Honey Select 2",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["HoneySelect2", "HoneySelect2VR", "AI-Syoujyo"],
   "hooksStart": ["HScene, Assembly-CSharp:SetStartVoice"],
   "hooksEnd": ["HScene, Assembly-CSharp:EndProc"],

@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "COM3D2",
   "fullName": "Custom Order Maid 3D2",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["COM3D2"],
   "hooksStart": [
     "YotogiPlayManager, Assembly-CSharp:UIStartup",

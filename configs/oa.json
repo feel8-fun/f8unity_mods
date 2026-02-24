@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "OA",
   "fullName": "Our Apartment",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["Our Apartment"],
   "hooksStart": ["Momoirosoft.Managers.SexSimControl, Assembly-CSharp:InitializeAsync"],
   "hooksEnd": ["Momoirosoft.Managers.SexSimControl, Assembly-CSharp:EndStreams"],

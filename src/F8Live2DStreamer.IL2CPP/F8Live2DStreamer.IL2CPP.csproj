@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>F8Live2DStreamer.IL2CPP</AssemblyName>
+    <RootNamespace>F8Live2DStreamer</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>..\bin\F8Live2DStreamer.IL2CPP\BepInEx\plugins\F8Live2DStreamer\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\F8Live2DStreamer\**\*.cs"
+             Exclude="..\F8Live2DStreamer\obj\**\*.cs;..\F8Live2DStreamer\NonPortable\*.cs"
+             LinkBase="Included" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.664" ExcludeAssets="runtime" />
+    <PackageReference Include="HarmonyX" Version="2.10.1" ExcludeAssets="runtime" />
+    <PackageReference Include="LitJson" Version="0.19.0" />
+    <PackageReference Include="IllusionLibs.HoneyCome.Il2Cppmscorlib" Version="2023.16.10" ExcludeAssets="runtime" />
+    <PackageReference Include="IllusionLibs.HoneyCome.UnityEngine" Version="2021.3.14.3" ExcludeAssets="runtime" />
+    <PackageReference Include="IllusionLibs.HoneyCome.UnityEngine.AnimationModule" Version="2021.3.14.3" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "HC",
   "fullName": "Honey Come",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["HoneyCome"],
   "hooksStart": ["H.HScene, Assembly-CSharp:Start"],
   "hooksEnd": ["H.HScene, Assembly-CSharp:OnDestroy"],

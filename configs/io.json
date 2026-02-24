@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "IO",
   "fullName": "Insult Order",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["io"],
   "hooksStart": ["FH_AnimeController, Assembly-CSharp:Start"],
   "hooksEnd": ["FH_SetUp, Assembly-CSharp:Unload"],

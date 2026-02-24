@@ -1,8 +1,8 @@
-# F8HSceneAnimatorStreamer Setup
+# F8SkeletonStreamer Setup
 
 ## Overview
 
-This repository now has a standalone toolchain for `F8HSceneAnimatorStreamer`:
+This repository now has a standalone toolchain for `F8SkeletonStreamer`:
 
 - Independent solution: `F8UnityMods.sln`
 - Build/package/install script: `tools/build.py`
@@ -10,32 +10,68 @@ This repository now has a standalone toolchain for `F8HSceneAnimatorStreamer`:
 
 `lovemachine_src/` is treated as legacy/reference source and is not part of the new solution.
 
+## Root pixi environment for Game Setup UI
+
+Use repository root as the single pixi project:
+
+```bash
+pixi install
+```
+
+Launch UI directly:
+
+```bash
+pixi run ui
+```
+
+Build onefile exe:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+```
+
 ## Build
 
 ```bash
-python tools/build.py build
+pixi run build
+```
+
+Equivalent CLI:
+
+```bash
+python tools/build.py build --exporter both
 ```
 
 ## Package
 
 ```bash
-python tools/build.py package
+pixi run package
 ```
 
-Output zip:
+Output zips:
 
-`dist/F8HSceneAnimatorStreamer/F8HSceneAnimatorStreamer.zip`
+- `dist/F8SkeletonStreamer/F8SkeletonStreamer.zip`
+- `dist/F8Live2DStreamer/F8Live2DStreamer.zip`
+
+Single-exporter examples:
+
+```bash
+python tools/build.py build --exporter skeleton
+python tools/build.py build --exporter live2d
+python tools/build.py package --exporter skeleton
+python tools/build.py package --exporter live2d
+```
 
 ## Local install into a game
 
 ```bash
-python tools/build.py install-local --game "C:\Games\MyUnityGame\MyUnityGame.exe"
+pixi run install -- --game "C:\Games\MyUnityGame\MyUnityGame.exe"
 ```
 
 ## Detect game metadata
 
 ```bash
-python tools/game_setup.py detect --target "C:\Games\MyUnityGame"
+pixi run setup-detect -- --target "C:\Games\MyUnityGame"
 ```
 
 Returns JSON fields:
@@ -48,6 +84,8 @@ Returns JSON fields:
 - `process_name`
 - `game_type` (auto-derived from `configs/*.json`, or `unknown`)
 - `profile_id` (template `id` from matched config, or `""`)
+- `streamer_type` (`skeleton|live2d|unknown`, from config `streamerType`)
+- `exporter_key` (`default|live2d`, resolved install target)
 - `has_bepinex`
 - `bepinex_variant`
 - `bepinex_version`
@@ -55,13 +93,13 @@ Returns JSON fields:
 ## Dry-run setup diagnosis
 
 ```bash
-python tools/game_setup.py diagnose --target "C:\Games\MyUnityGame" --offline
+pixi run setup-diag -- --target "C:\Games\MyUnityGame" --offline
 ```
 
 ## Full setup
 
 ```bash
-python tools/game_setup.py install --target "C:\Games\MyUnityGame"
+pixi run setup-install -- --target "C:\Games\MyUnityGame"
 ```
 
 Behavior:
@@ -70,18 +108,39 @@ Behavior:
 2. Detect supported game type/profile from process name (auto-loaded from `configs/*.json` templates).
 3. Install matching BepInEx if missing.
 4. Install exporter plugin from local build output, automatically selecting `Mono` or `IL2CPP` build.
-5. Install exporter config at `BepInEx/config/com.feel8.f8-hscene-animator-streamer.cfg`
+5. Install exporter config at `BepInEx/config/com.feel8.f8-skeleton-streamer.cfg`
    with profile-aware hook defaults (unless a custom unmanaged config already exists).
 6. Install single active profile at
-   `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json`:
+   `BepInEx/plugins/F8SkeletonStreamer/profile.json`:
    - Known game: installs matching template from `configs/*.json`.
    - Unknown game: installs a minimal editable `CUSTOM` template.
 7. Install RuntimeUnityEditor release matching BepInEx major line.
 8. Install CinematicUnityExplorer release matching BepInEx variant.
 
+Unified setup note:
+
+- Legacy standalone Live2D setup script has been removed.
+- Use `tools/game_setup.py` for both exporters.
+- `--exporter auto|skeleton|live2d` is supported.
+- In `configs/*.json`, `streamerType` controls auto routing (`skeleton` by default, set `live2d` when needed).
+
+Live2D build/package shortcuts:
+
+```bash
+pixi run lbuild
+pixi run lpackage
+pixi run linstall -- --game "C:\Games\MyUnityGame\MyUnityGame.exe"
+```
+
+Renaming note:
+
+- Current naming is `F8SkeletonStreamer` / `F8Live2DStreamer`.
+- No automatic migration is performed from legacy plugin/config paths.
+- If you previously used old names, remove old plugin folders/config files manually.
+
 Runtime profile loading is single-file mode:
 
-- Only `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` is loaded.
+- Only `BepInEx/plugins/F8SkeletonStreamer/profile.json` is loaded.
 - Legacy `profiles/*.json` files are ignored by runtime.
 
 Runtime capture mode is hook-only:
@@ -104,7 +163,7 @@ Full Hierarchy Debug Dump:
 
 Live profile editing (no game restart):
 
-- Edit `BepInEx/plugins/F8HSceneAnimatorStreamer/profile.json` directly.
+- Edit `BepInEx/plugins/F8SkeletonStreamer/profile.json` directly.
 - Runtime polls config/profile changes and auto reloads hooks/profile.
 
 2D / Spine / Animbone profile notes:

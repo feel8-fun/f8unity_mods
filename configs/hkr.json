@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "HKR",
   "fullName": "Holy Knight Ricca",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["HolyKnightRicca"],
   "hooksStart": [
     "ANV.NovelImageController, ANVAssemblyDifinition:Initialize",

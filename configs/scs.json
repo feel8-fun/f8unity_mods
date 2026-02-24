@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "SCS",
   "fullName": "Secrossphere",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["Secrossphere"],
   "hooksStart": ["H_Scene, Assembly-CSharp:ChangeStyle"],
   "hooksEnd": ["H_Scene, Assembly-CSharp:EndScene"],

@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "RE",
   "fullName": "RomanticEscapades",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["RE", "RomanticEscapades"],
   "hooksStart": [
     "Game.TouchPlayer:OnEnable",

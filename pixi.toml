@@ -1,0 +1,21 @@
+[workspace]
+name = "f8unitymods-tools"
+version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[dependencies]
+python = "3.13.*"
+pyside6 = ">=6.8.0"
+pyinstaller = ">=6.11.0"
+
+[tasks]
+build = "python tools/build.py build --exporter both"
+package = "python tools/build.py package --exporter both"
+install = "python tools/build.py install-local"
+setup-detect = "python tools/game_setup.py detect"
+setup-diag = "python tools/game_setup.py diagnose"
+setup-install = "python tools/game_setup.py install"
+ui = "python tools/game_setup_ui.py"
+ui-build = "pyinstaller tools/ui/game_setup_ui.spec --noconfirm --clean --distpath tools/ui/dist --workpath tools/ui/build"
+pycheck = "python -m py_compile tools/common.py tools/game_setup.py tools/build.py tools/build_live2d.py tools/game_setup_ui.py"

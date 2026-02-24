@@ -1,7 +1,8 @@
-﻿{
+{
   "id": "HS",
   "fullName": "Honey Select",
   "version": "1.0",
+  "streamerType": "skeleton",
   "processNames": ["HoneySelect_64"],
   "hooksStart": ["HScene, Assembly-CSharp:SetStartVoice"],
   "hooksEnd": ["HScene, Assembly-CSharp:OnDestroy"],

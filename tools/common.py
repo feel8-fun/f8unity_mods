@@ -992,6 +992,10 @@ def _build_unknown_profile_template(spec: ExporterSpec | None = None) -> dict[st
         "drawableNameIncludeRegex": "",
         "drawableNameExcludeRegex": "",
         "minBoundsExtent": 0.0001,
+        "emitDrawablesBbox": True,
+        "emitKeypointsFromDrawables": False,
+        "keypointSchema": "unity.keypoints.realtime.v1",
+        "keypoints": [],
     }
 
 

@@ -15,7 +15,8 @@ namespace F8Live2DStreamer.Bootstrap
 {
     internal sealed class ExporterRuntime : MonoBehaviour
     {
-        private const string Schema = "unity.live2d.drawables.bbox.v1";
+        private const string Live2DSchema = "unity.live2d.drawables.bbox.v1";
+        private const string DefaultKeypointSchema = "unity.keypoints.realtime.v1";
 
         private HookTriggerSource _hookSource;
         private ProfileResolver _profileResolver;
@@ -23,7 +24,9 @@ namespace F8Live2DStreamer.Bootstrap
         private ILive2DDrawableSampler _sampler;
 
         private UdpDatagramSender _sender;
-        private Live2DDrawablePacketEncoder _encoder;
+        private Live2DDrawablePacketEncoder _drawableEncoder;
+        private SkeletonPacketEncoder _skeletonEncoder;
+        private DrawableKeypointSampler _drawableKeypointSampler;
 
         private bool _hookActive;
         private float _nextFrameAt;
@@ -43,7 +46,9 @@ namespace F8Live2DStreamer.Bootstrap
             _profileResolver = GetComponent<ProfileResolver>();
             _characterProvider = GetComponent<Live2DCharacterProvider>();
             _sampler = GetComponent<Live2DDrawableSampler>();
-            _encoder = new Live2DDrawablePacketEncoder();
+            _drawableEncoder = new Live2DDrawablePacketEncoder();
+            _skeletonEncoder = new SkeletonPacketEncoder();
+            _drawableKeypointSampler = new DrawableKeypointSampler();
 
             string baseDirectory = Path.GetDirectoryName(typeof(ProfileResolver).Assembly.Location) ?? string.Empty;
             _profilePath = Path.Combine(baseDirectory, "profile.json");
@@ -122,26 +127,49 @@ namespace F8Live2DStreamer.Bootstrap
             for (int i = 0; i < characters.Length; i++)
             {
                 Live2DCharacterInfo character = characters[i];
+                bool emitDrawables = profile.emitDrawablesBbox;
+                bool emitKeypoints = profile.emitKeypointsFromDrawables;
+                if (!emitDrawables && !emitKeypoints)
+                {
+                    continue;
+                }
+
                 DrawableSample[] samples = _sampler.Sample(character, profile);
                 if (samples == null || samples.Length == 0)
                 {
                     continue;
                 }
 
-                Live2DCharacterFrame frame = new Live2DCharacterFrame
+                if (emitDrawables)
                 {
-                    FrameId = _frameId,
-                    TimestampMs = timestampMs,
-                    CharacterId = character.CharacterId,
-                    CharacterName = character.CharacterName,
-                    Drawables = samples
-                };
+                    Live2DCharacterFrame frame = new Live2DCharacterFrame
+                    {
+                        FrameId = _frameId,
+                        TimestampMs = timestampMs,
+                        CharacterId = character.CharacterId,
+                        CharacterName = character.CharacterName,
+                        Drawables = samples
+                    };
 
-                byte[][] packets = _encoder.EncodeChunks(frame, Schema, ExporterConfig.MaxUdpPayloadBytes.Value);
-                for (int p = 0; p < packets.Length; p++)
-                {
-                    _sender.Send(packets[p]);
+                    byte[][] packets = _drawableEncoder.EncodeChunks(frame, Live2DSchema, ExporterConfig.MaxUdpPayloadBytes.Value);
+                    for (int p = 0; p < packets.Length; p++)
+                    {
+                        _sender.Send(packets[p]);
+                    }
                 }
+
+                if (!emitKeypoints)
+                {
+                    continue;
+                }
+
+                BoneSample[] bones = _drawableKeypointSampler.Sample(samples, profile);
+                if (bones == null || bones.Length == 0)
+                {
+                    continue;
+                }
+
+                SendKeypointPackets(character, bones, profile, timestampMs);
             }
         }
 
@@ -271,6 +299,40 @@ namespace F8Live2DStreamer.Bootstrap
             catch
             {
                 return -1;
+            }
+        }
+
+        private void SendKeypointPackets(Live2DCharacterInfo character, BoneSample[] bones, GameProfile profile, long timestampMs)
+        {
+            if (_sender == null || _skeletonEncoder == null || character == null || bones == null || bones.Length == 0)
+            {
+                return;
+            }
+
+            string schema = profile != null ? profile.keypointSchema : null;
+            if (string.IsNullOrEmpty(schema))
+            {
+                schema = DefaultKeypointSchema;
+            }
+
+            CharacterFrame frame = new CharacterFrame
+            {
+                FrameId = _frameId,
+                TimestampMs = timestampMs,
+                CharacterId = character.CharacterId,
+                CharacterName = character.CharacterName,
+                Bones = bones,
+                HasAnimationContext = false,
+                NormalizedTime = 0f,
+                LayerIndex = 0,
+                ClipName = string.Empty,
+                PoseKey = "live2d_drawable_bbox_center"
+            };
+
+            byte[][] packets = _skeletonEncoder.EncodeChunks(frame, schema, ExporterConfig.MaxUdpPayloadBytes.Value);
+            for (int i = 0; i < packets.Length; i++)
+            {
+                _sender.Send(packets[i]);
             }
         }
     }

@@ -39,6 +39,9 @@ namespace F8Live2DStreamer.Profiles
         public string drawableNameIncludeRegex = string.Empty;
         public string drawableNameExcludeRegex = string.Empty;
         public float minBoundsExtent = 0.0001f;
+        public bool emitDrawablesBbox = true;
+        public bool emitKeypointsFromDrawables = false;
+        public string keypointSchema = "unity.keypoints.realtime.v1";
 
         public ControllerType GetControllerType()
         {

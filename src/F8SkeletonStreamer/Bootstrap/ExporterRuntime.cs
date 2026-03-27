@@ -29,6 +29,7 @@ namespace F8SkeletonStreamer.Bootstrap
         private bool _hookActive;
         private float _nextFrameAt;
         private ulong _frameId;
+        private CaptureMode _lastMode = (CaptureMode)(-1);
 
         private float _nextHotReloadAt;
         private string _profilePath = string.Empty;
@@ -82,9 +83,38 @@ namespace F8SkeletonStreamer.Bootstrap
 
         private void LateUpdate()
         {
-            if (!_hookActive || _characterProvider == null || _keypointSampler == null || _skeletonSender == null)
+            if (_characterProvider == null || _keypointSampler == null || _skeletonSender == null)
             {
                 return;
+            }
+
+            GameProfile profile = _profileResolver != null ? _profileResolver.ActiveProfile : null;
+            if (profile == null)
+            {
+                return;
+            }
+
+            CaptureMode mode = ResolveCaptureMode(profile);
+            if (_lastMode != mode)
+            {
+                _lastMode = mode;
+                Globals.Logger?.LogInfo("[hook] capture mode=" + mode);
+            }
+
+            bool shouldCapture = mode == CaptureMode.AlwaysOn || (mode == CaptureMode.HookOnly && _hookActive);
+            if (!shouldCapture)
+            {
+                if (_characterProvider.HasActiveSession && !_hookActive)
+                {
+                    _characterProvider.EndSession("capture_inactive");
+                }
+                _noCharactersSince = -1f;
+                return;
+            }
+
+            if (mode == CaptureMode.AlwaysOn && !_characterProvider.HasActiveSession)
+            {
+                _characterProvider.StartSession(null, "always_on");
             }
 
             float interval = 1f / Mathf.Max(1, ExporterConfig.TargetFps.Value);
@@ -97,7 +127,14 @@ namespace F8SkeletonStreamer.Bootstrap
             CharacterModel[] characters = _characterProvider.GetActiveCharacters();
             if (characters.Length == 0)
             {
-                TryAutoEndOnNoCharacters();
+                if (mode == CaptureMode.HookOnly)
+                {
+                    TryAutoEndOnNoCharacters();
+                }
+                else
+                {
+                    _noCharactersSince = -1f;
+                }
                 return;
             }
             _noCharactersSince = -1f;
@@ -158,7 +195,12 @@ namespace F8SkeletonStreamer.Bootstrap
                 _noCharactersSince = -1f;
                 if (_characterProvider != null)
                 {
-                    _characterProvider.EndSession(signal.Method);
+                    GameProfile profile = _profileResolver != null ? _profileResolver.ActiveProfile : null;
+                    CaptureMode mode = ResolveCaptureMode(profile);
+                    if (mode == CaptureMode.HookOnly)
+                    {
+                        _characterProvider.EndSession(signal.Method);
+                    }
                 }
             }
         }
@@ -198,6 +240,39 @@ namespace F8SkeletonStreamer.Bootstrap
         {
             GameProfile profile = _profileResolver != null ? _profileResolver.ActiveProfile : null;
             return profile != null && profile.debugDumpFullHierarchy;
+        }
+
+        private CaptureMode ResolveCaptureMode(GameProfile profile)
+        {
+            string selected = profile != null ? profile.captureMode : null;
+            if (string.IsNullOrEmpty(selected))
+            {
+                selected = ExporterConfig.CaptureMode.Value;
+            }
+
+            CaptureMode requested = ParseMode(selected);
+            if (requested != CaptureMode.Auto)
+            {
+                return requested;
+            }
+
+            bool hasHooks = profile != null
+                && ((profile.hooksStart != null && profile.hooksStart.Length > 0)
+                    || (profile.hooksEnd != null && profile.hooksEnd.Length > 0));
+            return hasHooks ? CaptureMode.HookOnly : CaptureMode.AlwaysOn;
+        }
+
+        private static CaptureMode ParseMode(string mode)
+        {
+            if (string.Equals(mode, "HookOnly", StringComparison.OrdinalIgnoreCase))
+            {
+                return CaptureMode.HookOnly;
+            }
+            if (string.Equals(mode, "AlwaysOn", StringComparison.OrdinalIgnoreCase))
+            {
+                return CaptureMode.AlwaysOn;
+            }
+            return CaptureMode.Auto;
         }
 
         private void TryAutoEndOnNoCharacters()

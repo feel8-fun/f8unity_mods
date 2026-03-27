@@ -16,6 +16,7 @@ namespace F8SkeletonStreamer.Profiles
         public string maleRootsExpr = string.Empty;
         public int maxFemaleCount = 1;
         public int maxMaleCount = 1;
+        public string captureMode = "Auto";
         public bool activeOnly = true;
         public bool useRegex = true;
         public int poseLayer = 0;
@@ -32,6 +33,19 @@ namespace F8SkeletonStreamer.Profiles
         public ControllerType GetControllerType()
         {
             return controllerType == "Animation" ? ControllerType.Animation : ControllerType.Animator;
+        }
+
+        public CaptureMode GetCaptureMode()
+        {
+            if (string.Equals(captureMode, "HookOnly", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return CaptureMode.HookOnly;
+            }
+            if (string.Equals(captureMode, "AlwaysOn", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return CaptureMode.AlwaysOn;
+            }
+            return CaptureMode.Auto;
         }
     }
 }

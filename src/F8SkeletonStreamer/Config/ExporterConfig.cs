@@ -12,6 +12,7 @@ namespace F8SkeletonStreamer.Config
         public static ConfigEntry<int> MaxUdpPayloadBytes { get; private set; }
 
         public static ConfigEntry<int> TargetFps { get; private set; }
+        public static ConfigEntry<string> CaptureMode { get; private set; }
         public static ConfigEntry<string> PoseKeyStrategy { get; private set; }
         public static ConfigEntry<bool> DebugDumpIncludeInactive { get; private set; }
 
@@ -31,6 +32,8 @@ namespace F8SkeletonStreamer.Config
             const string capture = "Capture";
             TargetFps = plugin.Config.Bind(capture, "TargetFps", 60,
                 "Target sampling frame rate for hook-active sessions.");
+            CaptureMode = plugin.Config.Bind(capture, "CaptureMode", "Auto",
+                "Capture mode: Auto | HookOnly | AlwaysOn.");
             PoseKeyStrategy = plugin.Config.Bind(capture, "PoseKeyStrategy", "clip_then_statehash",
                 "Pose key naming strategy identifier.");
             DebugDumpIncludeInactive = plugin.Config.Bind(capture, "DebugDumpIncludeInactive", true,

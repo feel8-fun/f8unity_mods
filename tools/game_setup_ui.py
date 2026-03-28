@@ -44,6 +44,9 @@ class RunOptions:
     force_reinstall: bool
     skip_exporter: bool
     exporter: str
+    prefer_local_configs: bool
+    allow_remote_configs: bool
+    refresh_remote_cache: bool
     rue: bool
     cue: bool
     config_manager: bool
@@ -73,6 +76,9 @@ class SetupWorker(QObject):
                     target=self.target,
                     config=self.config,
                     exporter=self.options.exporter,
+                    prefer_local_configs=self.options.prefer_local_configs,
+                    allow_remote_configs=self.options.allow_remote_configs,
+                    refresh_remote_cache=self.options.refresh_remote_cache,
                     force_reinstall=self.options.force_reinstall,
                     skip_exporter=self.options.skip_exporter,
                     rue=self.options.rue,
@@ -86,6 +92,9 @@ class SetupWorker(QObject):
                     target=self.target,
                     config=self.config,
                     exporter=self.options.exporter,
+                    prefer_local_configs=self.options.prefer_local_configs,
+                    allow_remote_configs=self.options.allow_remote_configs,
+                    refresh_remote_cache=self.options.refresh_remote_cache,
                     force_reinstall=self.options.force_reinstall,
                     skip_exporter=self.options.skip_exporter,
                     rue=self.options.rue,
@@ -157,6 +166,9 @@ class MainWindow(QMainWindow):
         self.install_cue = QCheckBox()
         self.install_config_manager = QCheckBox()
         self.install_uud = QCheckBox()
+        self.prefer_local_configs = QCheckBox()
+        self.allow_remote_configs = QCheckBox()
+        self.refresh_remote_cache = QCheckBox()
         self.offline_mode = QCheckBox()
         options_layout.addWidget(self.force_reinstall, 0, 0)
         options_layout.addWidget(self.skip_exporter, 0, 1)
@@ -166,7 +178,10 @@ class MainWindow(QMainWindow):
         options_layout.addWidget(self.install_cue, 2, 1)
         options_layout.addWidget(self.install_config_manager, 3, 0)
         options_layout.addWidget(self.install_uud, 3, 1)
-        options_layout.addWidget(self.offline_mode, 4, 0)
+        options_layout.addWidget(self.prefer_local_configs, 4, 0)
+        options_layout.addWidget(self.allow_remote_configs, 4, 1)
+        options_layout.addWidget(self.refresh_remote_cache, 5, 0)
+        options_layout.addWidget(self.offline_mode, 5, 1)
         root_layout.addWidget(self.options_group)
 
         actions_layout = QHBoxLayout()
@@ -195,6 +210,13 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.output, 1)
 
         self._apply_language(self._lang_code)
+        try:
+            defaults = load_setup_config()
+            self.prefer_local_configs.setChecked(defaults.prefer_local_configs)
+            self.allow_remote_configs.setChecked(defaults.allow_remote_configs)
+        except Exception:
+            self.prefer_local_configs.setChecked(True)
+            self.allow_remote_configs.setChecked(True)
         self._append_log(self.tr("Ready"))
 
     def _translation_dir(self) -> Path:
@@ -246,6 +268,9 @@ class MainWindow(QMainWindow):
         self.install_cue.setText(self.tr("CinematicUnityExplorer (CUE)"))
         self.install_config_manager.setText(self.tr("ConfigurationManager"))
         self.install_uud.setText(self.tr("UniversalUnityDemosaics (UUD)"))
+        self.prefer_local_configs.setText(self.tr("Prefer Local Configs"))
+        self.allow_remote_configs.setText(self.tr("Allow Remote Config Fetch"))
+        self.refresh_remote_cache.setText(self.tr("Refresh Remote Config Cache"))
         self.offline_mode.setText(self.tr("Offline"))
 
         selected_exporter = str(self.exporter_select.currentData() or "auto")
@@ -300,6 +325,9 @@ class MainWindow(QMainWindow):
             force_reinstall=self.force_reinstall.isChecked(),
             skip_exporter=self.skip_exporter.isChecked(),
             exporter=str(self.exporter_select.currentData() or "auto"),
+            prefer_local_configs=self.prefer_local_configs.isChecked(),
+            allow_remote_configs=self.allow_remote_configs.isChecked(),
+            refresh_remote_cache=self.refresh_remote_cache.isChecked(),
             rue=self.install_rue.isChecked(),
             cue=self.install_cue.isChecked(),
             config_manager=self.install_config_manager.isChecked(),
@@ -315,6 +343,9 @@ class MainWindow(QMainWindow):
         self.target_input.setEnabled(not running)
         self.exporter_select.setEnabled(not running)
         self.language_button.setEnabled(not running)
+        self.prefer_local_configs.setEnabled(not running)
+        self.allow_remote_configs.setEnabled(not running)
+        self.refresh_remote_cache.setEnabled(not running)
 
     def _start_action(self, action: str) -> None:
         try:
@@ -340,6 +371,9 @@ class MainWindow(QMainWindow):
                 {
                     "target": target,
                     "exporter": options.exporter,
+                    "prefer_local_configs": options.prefer_local_configs,
+                    "allow_remote_configs": options.allow_remote_configs,
+                    "refresh_remote_cache": options.refresh_remote_cache,
                 },
             )
 

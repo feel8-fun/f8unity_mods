@@ -18,62 +18,6 @@ datas = [
     (str(_require_path(project_root / "configs")), "configs"),
     (str(_require_path(project_root / "tools" / "game_setup_config.json")), "tools"),
     (str(_require_path(project_root / "tools" / "ui" / "i18n")), "tools/ui/i18n"),
-    (
-        str(
-            _require_path(
-                project_root
-                / "src"
-                / "bin"
-                / "F8SkeletonStreamer"
-                / "BepInEx"
-                / "plugins"
-                / "F8SkeletonStreamer"
-            )
-        ),
-        "src/bin/F8SkeletonStreamer/BepInEx/plugins/F8SkeletonStreamer",
-    ),
-    (
-        str(
-            _require_path(
-                project_root
-                / "src"
-                / "bin"
-                / "F8SkeletonStreamer.IL2CPP"
-                / "BepInEx"
-                / "plugins"
-                / "F8SkeletonStreamer"
-            )
-        ),
-        "src/bin/F8SkeletonStreamer.IL2CPP/BepInEx/plugins/F8SkeletonStreamer",
-    ),
-    (
-        str(
-            _require_path(
-                project_root
-                / "src"
-                / "bin"
-                / "F8Live2DStreamer"
-                / "BepInEx"
-                / "plugins"
-                / "F8Live2DStreamer"
-            )
-        ),
-        "src/bin/F8Live2DStreamer/BepInEx/plugins/F8Live2DStreamer",
-    ),
-    (
-        str(
-            _require_path(
-                project_root
-                / "src"
-                / "bin"
-                / "F8Live2DStreamer.IL2CPP"
-                / "BepInEx"
-                / "plugins"
-                / "F8Live2DStreamer"
-            )
-        ),
-        "src/bin/F8Live2DStreamer.IL2CPP/BepInEx/plugins/F8Live2DStreamer",
-    ),
 ]
 
 a = Analysis(

@@ -122,6 +122,10 @@ Unified setup note:
 - Legacy standalone Live2D setup script has been removed.
 - Use `tools/game_setup.py` for both exporters.
 - `--exporter auto|skeleton|live2d` is supported.
+- `--prefer-local-configs` keeps local/bundled profile templates ahead of remote manifest lookups.
+- `--no-remote-configs` disables manifest-based remote profile fetch.
+- `--refresh-config-cache` refreshes cached remote config files.
+- `--release-tag <tag>` pins self-hosted exporter downloads to a specific GitHub Release.
 - In `configs/*.json`, `streamerType` controls auto routing (`skeleton` by default, set `live2d` when needed).
 
 Live2D build/package shortcuts:

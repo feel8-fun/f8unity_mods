@@ -23,6 +23,8 @@ from common import (
     copy_exporter_plugin,
     detect_bepinex,
     detect_game,
+    download_self_release_asset,
+    github_release,
     ensure_exporter_artifacts,
     extract_zip,
     github_latest_release,
@@ -142,6 +144,10 @@ def _build_install_plan(
     install_cue: bool,
     install_config_manager: bool,
     install_uud: bool,
+    prefer_local_configs: bool,
+    allow_remote_configs: bool,
+    refresh_remote_cache: bool,
+    release_tag: str,
 ) -> dict[str, Any]:
     actions: list[str] = []
     blocking: list[str] = []
@@ -175,6 +181,16 @@ def _build_install_plan(
     if install_uud:
         actions.append("install_universal_unity_demosaics")
 
+    config_mode = "local_first" if prefer_local_configs else "remote_then_local"
+    if not allow_remote_configs:
+        config_mode = "local_only"
+
+    actions.append(f"profile_resolution:{config_mode}")
+    if refresh_remote_cache:
+        actions.append("refresh_remote_config_cache")
+    if str(release_tag or "").strip():
+        actions.append(f"pin_self_release:{release_tag}")
+
     return {"actions": actions, "blocking_errors": blocking}
 
 
@@ -189,6 +205,10 @@ def run_diagnose(
     config: SetupConfig,
     *,
     exporter: str = "auto",
+    prefer_local_configs: bool | None = None,
+    allow_remote_configs: bool | None = None,
+    refresh_remote_cache: bool = False,
+    release_tag: str = "",
     force_reinstall: bool = False,
     skip_exporter: bool = False,
     rue: bool = False,
@@ -201,6 +221,8 @@ def run_diagnose(
     detection = detect_game(target)
     selected_exporter_key = _resolve_install_exporter_key(detection, exporter, detection.game_root)
     selected_spec = resolve_exporter_spec_by_key(selected_exporter_key)
+    prefer_local = config.prefer_local_configs if prefer_local_configs is None else bool(prefer_local_configs)
+    allow_remote = config.allow_remote_configs if allow_remote_configs is None else bool(allow_remote_configs)
     plan = _build_install_plan(
         detection,
         force_reinstall,
@@ -209,6 +231,10 @@ def run_diagnose(
         cue,
         config_manager,
         uud,
+        prefer_local,
+        allow_remote,
+        refresh_remote_cache,
+        release_tag,
     )
     return {
         "detection": detection.to_public_dict(),
@@ -218,9 +244,59 @@ def run_diagnose(
             "plugin_dir": selected_spec.plugin_dir_name,
             "config_filename": selected_spec.config_filename,
         },
+        "installer_options": {
+            "prefer_local_configs": prefer_local,
+            "allow_remote_configs": allow_remote,
+            "refresh_remote_cache": bool(refresh_remote_cache),
+            "release_tag": str(release_tag or ""),
+        },
         "plan": plan,
         "offline": offline,
     }
+
+
+def _install_exporter_plugin(
+    detection: DetectionResult,
+    config: SetupConfig,
+    exporter_key: str,
+    *,
+    release_tag: str = "",
+    offline: bool = False,
+    refresh_remote_cache: bool = False,
+) -> tuple[Path, dict[str, Any]]:
+    exporter_spec = resolve_exporter_spec_by_key(exporter_key)
+
+    try:
+        zip_path, release, asset = download_self_release_asset(
+            exporter_spec,
+            detection.backend,
+            config,
+            release_tag=release_tag,
+            offline=offline,
+            refresh=refresh_remote_cache,
+        )
+        extract_zip(zip_path, detection.game_root)
+        metadata = {
+            "source": "remote_release",
+            "zip_path": str(zip_path),
+            "asset_name": str(asset.get("name", "")),
+            "release_tag": str(release.get("tag_name", "") or release_tag),
+        }
+        return detection.game_root / "BepInEx" / "plugins" / exporter_spec.plugin_dir_name, metadata
+    except Exception as e:
+        artifact_dir = ensure_exporter_artifacts(detection.backend, spec=exporter_spec)
+        installed = copy_exporter_plugin(
+            detection.game_root,
+            backend=detection.backend,
+            source_artifact_dir=artifact_dir,
+            spec=exporter_spec,
+        )
+        metadata = {
+            "source": "local_artifact",
+            "artifact_dir": str(artifact_dir),
+            "fallback_reason": str(e),
+        }
+        return installed, metadata
 
 
 def run_install(
@@ -228,6 +304,10 @@ def run_install(
     config: SetupConfig,
     *,
     exporter: str = "auto",
+    prefer_local_configs: bool | None = None,
+    allow_remote_configs: bool | None = None,
+    refresh_remote_cache: bool = False,
+    release_tag: str = "",
     force_reinstall: bool = False,
     rue: bool = False,
     cue: bool = False,
@@ -269,11 +349,19 @@ def run_install(
 
     selected_exporter_key = _resolve_install_exporter_key(detection, exporter, detection.game_root)
     exporter_spec = resolve_exporter_spec_by_key(selected_exporter_key)
+    prefer_local = config.prefer_local_configs if prefer_local_configs is None else bool(prefer_local_configs)
+    allow_remote = config.allow_remote_configs if allow_remote_configs is None else bool(allow_remote_configs)
     summary["selected_exporter"] = {
         "key": selected_exporter_key,
         "project_name": exporter_spec.project_name,
         "plugin_dir": exporter_spec.plugin_dir_name,
         "config_filename": exporter_spec.config_filename,
+    }
+    summary["installer_options"] = {
+        "prefer_local_configs": prefer_local,
+        "allow_remote_configs": allow_remote,
+        "refresh_remote_cache": bool(refresh_remote_cache),
+        "release_tag": str(release_tag or ""),
     }
 
     if detection.has_bepinex and not bepinex_variant_matches_backend(detection.backend, detection.bepinex_variant):
@@ -295,12 +383,13 @@ def run_install(
         summary["actions"].append({"install_bepinex": "skipped_existing"})
 
     if not skip_exporter:
-        artifact_dir = ensure_exporter_artifacts(detection.backend, spec=exporter_spec)
-        installed = copy_exporter_plugin(
-            detection.game_root,
-            backend=detection.backend,
-            source_artifact_dir=artifact_dir,
-            spec=exporter_spec,
+        installed, exporter_install_meta = _install_exporter_plugin(
+            detection,
+            config,
+            selected_exporter_key,
+            release_tag=release_tag,
+            offline=offline,
+            refresh_remote_cache=refresh_remote_cache,
         )
         config_path, config_status = install_exporter_config(
             detection.game_root,
@@ -310,13 +399,23 @@ def run_install(
         profile_path, profile_status, profile_source = install_single_profile(
             detection.game_root,
             detection,
+            config=config,
             spec=exporter_spec,
+            prefer_local_configs=prefer_local,
+            allow_remote_configs=allow_remote,
+            refresh_remote_cache=refresh_remote_cache,
+            offline=offline,
         )
         summary["actions"].append(
             {
                 "install_exporter": {
                     "plugin_dir": str(installed),
                     "backend": detection.backend,
+                    "source": exporter_install_meta.get("source"),
+                    "release_tag": exporter_install_meta.get("release_tag"),
+                    "asset_name": exporter_install_meta.get("asset_name"),
+                    "artifact_dir": exporter_install_meta.get("artifact_dir"),
+                    "fallback_reason": exporter_install_meta.get("fallback_reason"),
                     "config_path": str(config_path),
                     "config_status": config_status,
                 }
@@ -386,6 +485,10 @@ def cmd_diagnose(args: argparse.Namespace, config: SetupConfig) -> None:
             target=args.target,
             config=config,
             exporter=args.exporter,
+            prefer_local_configs=args.prefer_local_configs,
+            allow_remote_configs=not args.no_remote_configs,
+            refresh_remote_cache=args.refresh_config_cache,
+            release_tag=args.release_tag,
             force_reinstall=args.force_reinstall,
             skip_exporter=args.skip_exporter,
             rue=args.rue,
@@ -440,6 +543,10 @@ def cmd_install(args: argparse.Namespace, config: SetupConfig) -> None:
             target=target,
             config=config,
             exporter=exporter,
+            prefer_local_configs=args.prefer_local_configs,
+            allow_remote_configs=not args.no_remote_configs,
+            refresh_remote_cache=args.refresh_config_cache,
+            release_tag=args.release_tag,
             force_reinstall=args.force_reinstall,
             rue=args.rue,
             cue=args.cue,
@@ -821,6 +928,27 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "skeleton", "live2d"],
         help="Exporter selection strategy. auto = infer from profile template.",
     )
+    p_diag.add_argument(
+        "--prefer-local-configs",
+        action="store_true",
+        default=None,
+        help="Prefer bundled/local configs before cached or remote configs.",
+    )
+    p_diag.add_argument(
+        "--no-remote-configs",
+        action="store_true",
+        help="Disable remote config manifest/profile fetch and use local configs only.",
+    )
+    p_diag.add_argument(
+        "--refresh-config-cache",
+        action="store_true",
+        help="Force refresh of cached remote config manifest/profile files.",
+    )
+    p_diag.add_argument(
+        "--release-tag",
+        default="",
+        help="Pin self-hosted exporter downloads to a specific GitHub release tag.",
+    )
     p_diag.add_argument("--force-reinstall", action="store_true", help="Assume force reinstall behavior in plan")
     p_diag.add_argument("--rue", action="store_true", help="Also install RuntimeUnityEditor")
     p_diag.add_argument("--cue", action="store_true", help="Also install CinematicUnityExplorer")
@@ -843,6 +971,27 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         choices=["auto", "skeleton", "live2d"],
         help="Exporter selection strategy. auto = infer from profile template.",
+    )
+    p_install.add_argument(
+        "--prefer-local-configs",
+        action="store_true",
+        default=None,
+        help="Prefer bundled/local configs before cached or remote configs.",
+    )
+    p_install.add_argument(
+        "--no-remote-configs",
+        action="store_true",
+        help="Disable remote config manifest/profile fetch and use local configs only.",
+    )
+    p_install.add_argument(
+        "--refresh-config-cache",
+        action="store_true",
+        help="Force refresh of cached remote config manifest/profile files.",
+    )
+    p_install.add_argument(
+        "--release-tag",
+        default="",
+        help="Pin self-hosted exporter downloads to a specific GitHub release tag.",
     )
     interactive_group = p_install.add_mutually_exclusive_group()
     interactive_group.add_argument(

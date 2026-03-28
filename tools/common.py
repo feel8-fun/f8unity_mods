@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as _dt
+import hashlib
 import json
 import re
 import shutil
@@ -191,6 +192,13 @@ PROFILE_FILENAME = "profile.json"
 
 @dataclasses.dataclass
 class SetupConfig:
+    self_release_repo: str
+    self_release_tag: str
+    self_release_channel: str
+    config_manifest_url: str
+    config_base_url: str
+    prefer_local_configs: bool
+    allow_remote_configs: bool
     bepinex_release_repo: str
     bepinex_be_index_url: str
     rue_release_repo: str
@@ -198,7 +206,9 @@ class SetupConfig:
     config_manager_release_repo: str
     universal_unity_demosaics_release_repo: str
     cache_dir: Path
+    remote_cache_dir: Path
     timeout_sec: int
+    remote_timeout_sec: int
     asset_regex_overrides: dict[str, str]
 
 
@@ -247,7 +257,11 @@ class SetupError(RuntimeError):
 
 
 def print_json(payload: Any) -> None:
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write((text + "\n").encode("utf-8", errors="replace"))
 
 
 def log(message: str) -> None:
@@ -256,6 +270,13 @@ def log(message: str) -> None:
 
 def load_setup_config(path: Path | None = None) -> SetupConfig:
     defaults = {
+        "self_release_repo": "feel8-fun/f8unity_mods",
+        "self_release_tag": "",
+        "self_release_channel": "latest",
+        "config_manifest_url": "https://github.com/feel8-fun/f8unity_mods/releases/latest/download/configs-manifest.json",
+        "config_base_url": "https://raw.githubusercontent.com/feel8-fun/f8unity_mods/main/configs",
+        "prefer_local_configs": True,
+        "allow_remote_configs": True,
         "bepinex_release_repo": "BepInEx/BepInEx",
         "bepinex_be_index_url": "https://builds.bepinex.dev/projects/bepinex_be",
         "rue_release_repo": "ManlyMarco/RuntimeUnityEditor",
@@ -263,7 +284,9 @@ def load_setup_config(path: Path | None = None) -> SetupConfig:
         "config_manager_release_repo": "BepInEx/BepInEx.ConfigurationManager",
         "universal_unity_demosaics_release_repo": "ManlyMarco/UniversalUnityDemosaics",
         "cache_dir": ".cache/unity_exporter_helper",
+        "remote_cache_dir": ".cache/f8unitymods_remote",
         "timeout_sec": 30,
+        "remote_timeout_sec": 30,
         "asset_regex_overrides": {},
     }
 
@@ -296,7 +319,20 @@ def load_setup_config(path: Path | None = None) -> SetupConfig:
         cache_dir = cache_base / cache_dir
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    remote_cache_dir = Path(defaults["remote_cache_dir"])
+    if not remote_cache_dir.is_absolute():
+        cache_base = RUNTIME_ROOT if _IS_FROZEN else ROOT
+        remote_cache_dir = cache_base / remote_cache_dir
+    remote_cache_dir.mkdir(parents=True, exist_ok=True)
+
     return SetupConfig(
+        self_release_repo=str(defaults["self_release_repo"]),
+        self_release_tag=str(defaults.get("self_release_tag", "") or ""),
+        self_release_channel=str(defaults.get("self_release_channel", "latest") or "latest"),
+        config_manifest_url=str(defaults.get("config_manifest_url", "") or ""),
+        config_base_url=str(defaults.get("config_base_url", "") or ""),
+        prefer_local_configs=bool(defaults.get("prefer_local_configs", True)),
+        allow_remote_configs=bool(defaults.get("allow_remote_configs", True)),
         bepinex_release_repo=str(defaults["bepinex_release_repo"]),
         bepinex_be_index_url=str(defaults["bepinex_be_index_url"]),
         rue_release_repo=str(defaults["rue_release_repo"]),
@@ -304,7 +340,9 @@ def load_setup_config(path: Path | None = None) -> SetupConfig:
         config_manager_release_repo=str(defaults["config_manager_release_repo"]),
         universal_unity_demosaics_release_repo=str(defaults["universal_unity_demosaics_release_repo"]),
         cache_dir=cache_dir,
+        remote_cache_dir=remote_cache_dir,
         timeout_sec=int(defaults["timeout_sec"]),
+        remote_timeout_sec=int(defaults.get("remote_timeout_sec", defaults["timeout_sec"])),
         asset_regex_overrides=dict(defaults.get("asset_regex_overrides", {})),
     )
 
@@ -595,6 +633,284 @@ def github_latest_release(repo: str, timeout_sec: int) -> dict[str, Any]:
         return json.loads(resp.read().decode("utf-8"))
 
 
+def github_release(repo: str, timeout_sec: int, *, tag: str = "", channel: str = "latest") -> dict[str, Any]:
+    selected_tag = str(tag or "").strip()
+    if selected_tag:
+        url = f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(selected_tag)}"
+    elif str(channel or "").strip().lower() == "latest":
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+    else:
+        url = f"https://api.github.com/repos/{repo}/releases/{urllib.parse.quote(str(channel).strip())}"
+
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def github_asset_by_name(release: dict[str, Any], asset_name: str) -> dict[str, Any]:
+    expected = str(asset_name or "").strip()
+    for asset in release.get("assets", []):
+        if str(asset.get("name", "")).strip() == expected:
+            return asset
+    raise SetupError(EXIT_DOWNLOAD_FAILED, f"release asset not found: {expected}")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _normalize_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    raw = str(value).strip().lower()
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
+def _read_json_file(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _local_config_dirs() -> list[Path]:
+    candidates = [
+        RUNTIME_ROOT / "configs",
+        ROOT / "configs",
+    ]
+    result: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except Exception:
+            resolved = candidate
+        if resolved in seen or not candidate.is_dir():
+            continue
+        seen.add(resolved)
+        result.append(candidate)
+    return result
+
+
+def _iter_local_profile_candidates(template_name: str) -> list[Path]:
+    clean_name = str(template_name or "").strip()
+    if not clean_name:
+        return []
+    return [config_dir / clean_name for config_dir in _local_config_dirs()]
+
+
+def load_local_profile_template(template_name: str) -> tuple[dict[str, Any], str] | None:
+    for candidate in _iter_local_profile_candidates(template_name):
+        payload = _read_json_file(candidate)
+        if payload is not None:
+            return payload, str(candidate)
+    return None
+
+
+def resolve_local_profile_for_detection(detection: DetectionResult) -> tuple[dict[str, Any], str] | None:
+    normalized = _normalize_process_name(detection.process_name)
+    fallback_match: tuple[dict[str, Any], str] | None = None
+    for config_dir in _local_config_dirs():
+        for candidate in sorted(config_dir.glob("*.json")):
+            payload = _read_json_file(candidate)
+            if payload is None:
+                continue
+            aliases = _profile_aliases_from_payload(candidate, payload)
+            if normalized in aliases:
+                return payload, str(candidate)
+            detection_game_type = _normalize_process_name(detection.game_type)
+            if detection_game_type and detection_game_type in aliases and fallback_match is None:
+                fallback_match = (payload, str(candidate))
+    return fallback_match
+
+
+def _profile_aliases_from_payload(path: Path, payload: dict[str, Any]) -> set[str]:
+    raw_names = payload.get("processNames", [])
+    aliases: list[str] = []
+    if isinstance(raw_names, list):
+        aliases.extend(str(item).strip() for item in raw_names if str(item).strip())
+    aliases.append(path.stem)
+    aliases.append(str(payload.get("id", "")).strip())
+    return {_normalize_process_name(item) for item in aliases if _normalize_process_name(item)}
+
+
+def resolve_profile_template_path(profile_template_name: str) -> Path:
+    name = profile_template_name.strip()
+    if not name:
+        raise SetupError(EXIT_INSTALL_FAILED, "profile template name is empty")
+    candidates = _iter_local_profile_candidates(name)
+    for path in candidates:
+        if path.exists():
+            return path
+    fallback = (ROOT / "configs" / name) if not candidates else candidates[0]
+    raise SetupError(EXIT_INSTALL_FAILED, f"profile template not found: {fallback}")
+
+
+def load_remote_config_manifest(
+    config: SetupConfig,
+    *,
+    offline: bool = False,
+    refresh: bool = False,
+) -> dict[str, Any] | None:
+    manifest_url = str(config.config_manifest_url or "").strip()
+    if not manifest_url:
+        return None
+
+    cache_path = config.remote_cache_dir / "manifests" / "configs-manifest.json"
+    try:
+        manifest_path = download_with_retries(
+            manifest_url,
+            cache_path,
+            timeout_sec=config.remote_timeout_sec,
+            offline=offline,
+            refresh=refresh,
+        )
+    except SetupError:
+        if cache_path.exists():
+            payload = _read_json_file(cache_path)
+            return payload if isinstance(payload, dict) else None
+        return None
+
+    payload = _read_json_file(manifest_path)
+    return payload if isinstance(payload, dict) else None
+
+
+def _remote_profile_matches_entry(entry: dict[str, Any], detection: DetectionResult) -> bool:
+    process_normalized = _normalize_process_name(detection.process_name)
+    candidates = [str(entry.get("id", "")), str(entry.get("gameType", "")), Path(str(entry.get("file", ""))).stem]
+    raw_names = entry.get("processNames", [])
+    if isinstance(raw_names, list):
+        candidates.extend(str(item) for item in raw_names)
+    aliases = entry.get("aliases", [])
+    if isinstance(aliases, list):
+        candidates.extend(str(item) for item in aliases)
+    normalized = {_normalize_process_name(item) for item in candidates if _normalize_process_name(item)}
+    if process_normalized in normalized:
+        return True
+    detection_game_type = _normalize_process_name(detection.game_type)
+    return bool(detection_game_type and detection_game_type in normalized)
+
+
+def resolve_remote_profile_entry(manifest: dict[str, Any] | None, detection: DetectionResult) -> dict[str, Any] | None:
+    if not isinstance(manifest, dict):
+        return None
+    profiles = manifest.get("profiles", [])
+    if not isinstance(profiles, list):
+        return None
+    for entry in profiles:
+        if isinstance(entry, dict) and _remote_profile_matches_entry(entry, detection):
+            return entry
+    return None
+
+
+def _remote_profile_url(entry: dict[str, Any], config: SetupConfig, manifest: dict[str, Any] | None) -> str:
+    explicit = str(entry.get("downloadUrl", "") or entry.get("url", "")).strip()
+    if explicit:
+        return explicit
+    base_url = ""
+    if isinstance(manifest, dict):
+        base_url = str(manifest.get("baseUrl", "") or "").strip()
+    if not base_url:
+        base_url = str(config.config_base_url or "").strip()
+    rel = str(entry.get("file", "")).strip()
+    if not rel or not base_url:
+        return ""
+    return urllib.parse.urljoin(base_url.rstrip("/") + "/", rel)
+
+
+def download_remote_profile_payload(
+    entry: dict[str, Any],
+    manifest: dict[str, Any] | None,
+    config: SetupConfig,
+    *,
+    offline: bool = False,
+    refresh: bool = False,
+) -> tuple[dict[str, Any], str]:
+    rel_name = str(entry.get("file", "") or "").strip()
+    expected_sha = str(entry.get("sha256", "") or "").strip().lower()
+    if not rel_name:
+        raise SetupError(EXIT_INSTALL_FAILED, "remote config manifest entry is missing file")
+
+    url = _remote_profile_url(entry, config, manifest)
+    if not url:
+        raise SetupError(EXIT_INSTALL_FAILED, f"remote config manifest entry has no download url: {rel_name}")
+
+    cache_name = f"{expected_sha}_{safe_filename(Path(rel_name).name)}" if expected_sha else safe_filename(Path(rel_name).name)
+    cache_path = config.remote_cache_dir / "configs" / cache_name
+    path = download_with_retries(
+        url,
+        cache_path,
+        timeout_sec=config.remote_timeout_sec,
+        offline=offline,
+        refresh=refresh,
+    )
+
+    if expected_sha:
+        actual_sha = sha256_file(path)
+        if actual_sha.lower() != expected_sha:
+            raise SetupError(
+                EXIT_DOWNLOAD_FAILED,
+                f"remote config checksum mismatch for {rel_name}: expected {expected_sha}, got {actual_sha}",
+            )
+
+    payload = _read_json_file(path)
+    if payload is None:
+        raise SetupError(EXIT_INSTALL_FAILED, f"remote config is not a valid object: {path}")
+    return payload, str(path)
+
+
+def select_self_release_asset(spec: ExporterSpec, backend: str) -> str:
+    normalized_backend = "il2cpp" if str(backend or "").strip().lower() == "il2cpp" else "mono"
+    return f"{spec.project_name}-{normalized_backend}.zip"
+
+
+def download_self_release_asset(
+    spec: ExporterSpec,
+    backend: str,
+    config: SetupConfig,
+    *,
+    release_tag: str = "",
+    offline: bool = False,
+    refresh: bool = False,
+) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+    if not str(config.self_release_repo or "").strip():
+        raise SetupError(EXIT_DOWNLOAD_FAILED, "self_release_repo is not configured")
+
+    release = github_release(
+        config.self_release_repo,
+        config.remote_timeout_sec,
+        tag=release_tag or config.self_release_tag,
+        channel=config.self_release_channel,
+    )
+    asset_name = select_self_release_asset(spec, backend)
+    asset = github_asset_by_name(release, asset_name)
+    tag_name = str(release.get("tag_name", "") or release_tag or config.self_release_tag or config.self_release_channel or "latest")
+    cache_path = build_cached_asset_path(config.remote_cache_dir, f"self-release/{safe_filename(tag_name)}", asset_name)
+    zip_path = download_with_retries(
+        str(asset["browser_download_url"]),
+        cache_path,
+        timeout_sec=config.remote_timeout_sec,
+        offline=offline,
+        refresh=refresh,
+    )
+    return zip_path, release, asset
+
+
 def select_bepinex_mono_asset(
     release: dict[str, Any],
     arch: str,
@@ -769,13 +1085,24 @@ def safe_filename(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._+-]", "_", name)
 
 
-def download_with_retries(url: str, dst: Path, timeout_sec: int, retries: int = 3, offline: bool = False) -> Path:
+def download_with_retries(
+    url: str,
+    dst: Path,
+    timeout_sec: int,
+    retries: int = 3,
+    offline: bool = False,
+    refresh: bool = False,
+) -> Path:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if offline:
         if dst.exists() and dst.stat().st_size > 0:
             log(f"offline mode: using cached file {dst}")
             return dst
         raise SetupError(EXIT_DOWNLOAD_FAILED, f"offline mode but cache missing: {dst}")
+
+    if dst.exists() and dst.stat().st_size > 0 and not refresh:
+        log(f"using cached file {dst}")
+        return dst
 
     last_error: Exception | None = None
     for attempt in range(retries):
@@ -922,17 +1249,6 @@ def _remove_stale_il2cpp_subdir(plugin_dir: Path) -> None:
         shutil.rmtree(stale, ignore_errors=True)
 
 
-def resolve_profile_template_path(profile_template_name: str) -> Path:
-    name = profile_template_name.strip()
-    if not name:
-        raise SetupError(EXIT_INSTALL_FAILED, "profile template name is empty")
-    candidates = [ROOT / "configs" / name]
-    for path in candidates:
-        if path.exists():
-            return path
-    raise SetupError(EXIT_INSTALL_FAILED, f"profile template not found: {candidates[0]}")
-
-
 def _build_unknown_profile_template(spec: ExporterSpec | None = None) -> dict[str, Any]:
     exporter = resolve_exporter_spec(spec)
     return {
@@ -1014,7 +1330,13 @@ def _is_managed_profile(path: Path, spec: ExporterSpec | None = None) -> bool:
 def install_single_profile(
     game_root: Path,
     detection: DetectionResult,
+    config: SetupConfig | None = None,
     spec: ExporterSpec | None = None,
+    *,
+    prefer_local_configs: bool | None = None,
+    allow_remote_configs: bool | None = None,
+    refresh_remote_cache: bool = False,
+    offline: bool = False,
 ) -> tuple[Path, str, str]:
     exporter = resolve_exporter_spec(spec)
     plugin_dir = game_root / "BepInEx" / "plugins" / exporter.plugin_dir_name
@@ -1029,22 +1351,58 @@ def install_single_profile(
     if profile_path.exists() and not existing_managed:
         return profile_path, "skipped_existing_custom", "existing"
 
+    runtime_config = config or load_setup_config()
+    prefer_local = _normalize_bool(prefer_local_configs, runtime_config.prefer_local_configs)
+    allow_remote = _normalize_bool(allow_remote_configs, runtime_config.allow_remote_configs)
+
     game_spec = GAME_PROFILE_CATALOG.get(detection.game_type, {})
     template_name = str(game_spec.get("profile_template", "") or "").strip()
-    if template_name:
-        template_path = resolve_profile_template_path(template_name)
-        payload = json.loads(template_path.read_text(encoding="utf-8-sig"))
-        if not isinstance(payload, dict):
-            raise SetupError(EXIT_INSTALL_FAILED, f"profile template is not an object: {template_path}")
-        payload["streamerType"] = "live2d" if exporter.key == "live2d" else "skeleton"
-        payload[PROFILE_MANAGED_BY_KEY] = exporter.managed_by_value
-        status = "updated_managed" if existing_managed else "installed_known"
-        source = template_name
-    else:
+    payload: dict[str, Any] | None = None
+    status = "updated_managed" if existing_managed else "installed_known"
+    source = template_name
+
+    if prefer_local:
+        if template_name:
+            local_match = load_local_profile_template(template_name)
+        else:
+            local_match = resolve_local_profile_for_detection(detection)
+        if local_match is not None:
+            payload, source = local_match
+            status = "updated_managed" if existing_managed else "installed_known_local"
+
+    manifest: dict[str, Any] | None = None
+    if payload is None and allow_remote:
+        manifest = load_remote_config_manifest(
+            runtime_config,
+            offline=offline,
+            refresh=refresh_remote_cache,
+        )
+        entry = resolve_remote_profile_entry(manifest, detection)
+        if entry is not None:
+            payload, source = download_remote_profile_payload(
+                entry,
+                manifest,
+                runtime_config,
+                offline=offline,
+                refresh=refresh_remote_cache,
+            )
+            status = "updated_managed" if existing_managed else "installed_known_remote"
+
+    if payload is None:
+        local_match = load_local_profile_template(template_name) if template_name else resolve_local_profile_for_detection(detection)
+        if local_match is not None:
+            payload, source = local_match
+            status = "updated_managed" if existing_managed else "installed_known_local"
+
+    if payload is None:
         payload = _build_unknown_profile_template(spec=exporter)
         status = "updated_managed" if existing_managed else "installed_unknown_template"
         source = "generated"
+    elif not isinstance(payload, dict):
+        raise SetupError(EXIT_INSTALL_FAILED, f"profile template is not an object: {source}")
 
+    payload["streamerType"] = "live2d" if exporter.key == "live2d" else "skeleton"
+    payload[PROFILE_MANAGED_BY_KEY] = exporter.managed_by_value
     profile_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return profile_path, status, source
 

@@ -1,4 +1,11 @@
 {
+  "self_release_repo": "feel8-fun/f8unity_mods",
+  "self_release_tag": "",
+  "self_release_channel": "latest",
+  "config_manifest_url": "https://github.com/feel8-fun/f8unity_mods/releases/latest/download/configs-manifest.json",
+  "config_base_url": "https://raw.githubusercontent.com/feel8-fun/f8unity_mods/main/configs",
+  "prefer_local_configs": true,
+  "allow_remote_configs": true,
   "bepinex_release_repo": "BepInEx/BepInEx",
   "bepinex_be_index_url": "https://builds.bepinex.dev/projects/bepinex_be",
   "rue_release_repo": "ManlyMarco/RuntimeUnityEditor",
@@ -6,7 +13,9 @@
   "config_manager_release_repo": "BepInEx/BepInEx.ConfigurationManager",
   "universal_unity_demosaics_release_repo": "ManlyMarco/UniversalUnityDemosaics",
   "cache_dir": ".cache/unity_exporter_helper",
+  "remote_cache_dir": ".cache/f8unitymods_remote",
   "timeout_sec": 30,
+  "remote_timeout_sec": 30,
   "asset_regex_overrides": {
     "bepinex_mono_win_x64": "BepInEx_win_x64_.+\\.zip$",
     "bepinex_mono_win_x86": "BepInEx_win_x86_.+\\.zip$",

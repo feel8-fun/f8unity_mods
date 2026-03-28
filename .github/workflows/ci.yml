@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.9.3
+
+      - name: Install Pixi environment
+        run: pixi install
+
+      - name: Build exporters
+        run: python tools/build.py build --exporter both --backend both
+
+      - name: Validate configs
+        run: python tools/release_manifest.py validate --configs-dir configs
+
+      - name: Python syntax check
+        run: pixi run pycheck
+
+      - name: Package release zips
+        run: python tools/build.py package-release --exporter both --backend both
+
+      - name: Build GameSetupUI.exe
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: f8unitymods-build-artifacts
+          path: |
+            dist/release/*
+            dist/GameSetupUI.exe

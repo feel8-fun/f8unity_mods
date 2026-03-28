@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.9.3
+
+      - name: Install Pixi environment
+        run: pixi install
+
+      - name: Build exporters
+        run: python tools/build.py build --exporter both --backend both
+
+      - name: Package release zips
+        run: python tools/build.py package-release --exporter both --backend both
+
+      - name: Build GameSetupUI.exe
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+
+      - name: Generate manifests
+        run: python tools/release_manifest.py generate --configs-dir configs --output-dir dist/release --release-repo ${{ github.repository }} --release-tag ${{ github.ref_name }} --commit ${{ github.sha }} --config-base-url https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/configs --include-config-pack
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/GameSetupUI.exe
+            dist/release/F8SkeletonStreamer-mono.zip
+            dist/release/F8SkeletonStreamer-il2cpp.zip
+            dist/release/F8Live2DStreamer-mono.zip
+            dist/release/F8Live2DStreamer-il2cpp.zip
+            dist/release/configs-manifest.json
+            dist/release/release-manifest.json
+            dist/release/configs-pack.zip

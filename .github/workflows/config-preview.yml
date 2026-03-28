@@ -1,0 +1,38 @@
+name: Config Preview
+
+on:
+  pull_request:
+    paths:
+      - "configs/*.json"
+      - "tools/release_manifest.py"
+      - ".github/workflows/config-preview.yml"
+
+jobs:
+  preview:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.9.3
+
+      - name: Install Pixi environment
+        run: pixi install
+
+      - name: Validate configs
+        run: python tools/release_manifest.py validate --configs-dir configs
+
+      - name: Generate preview manifest
+        run: python tools/release_manifest.py generate --configs-dir configs --output-dir dist/config-preview --release-repo ${{ github.repository }} --release-tag preview-${{ github.event.pull_request.number }} --commit ${{ github.sha }} --config-base-url https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/configs
+
+      - name: Upload config preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-preview
+          path: dist/config-preview/*

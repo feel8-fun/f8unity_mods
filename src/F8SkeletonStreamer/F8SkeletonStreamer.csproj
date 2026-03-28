@@ -7,9 +7,9 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BepInEx.Core" Version="5.4.11" ExcludeAssets="runtime" />
-    <PackageReference Include="HarmonyX" Version="2.4.2" ExcludeAssets="runtime" />
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" ExcludeAssets="runtime" />
+    <PackageReference Include="HarmonyX" Version="2.7.0" ExcludeAssets="runtime" />
     <PackageReference Include="LitJson" Version="0.19.0" PrivateAssets="all" />
-    <PackageReference Include="UnityEngine.Core" Version="5.6.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
 </Project>

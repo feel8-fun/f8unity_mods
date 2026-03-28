@@ -30,6 +30,9 @@ jobs:
       - name: Install Pixi environment
         run: pixi install
 
+      - name: Restore .NET packages
+        run: dotnet restore F8UnityMods.sln --configfile NuGet.config
+
       - name: Build exporters
         run: python tools/build.py build --exporter both --backend both
 

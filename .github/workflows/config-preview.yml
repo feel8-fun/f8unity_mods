@@ -25,6 +25,9 @@ jobs:
       - name: Install Pixi environment
         run: pixi install
 
+      - name: Restore .NET packages
+        run: dotnet restore F8UnityMods.sln --configfile NuGet.config
+
       - name: Validate configs
         run: python tools/release_manifest.py validate --configs-dir configs
 

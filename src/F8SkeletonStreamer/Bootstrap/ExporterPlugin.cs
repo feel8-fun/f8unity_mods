@@ -9,9 +9,11 @@ using F8SkeletonStreamer.Triggering;
 namespace F8SkeletonStreamer.Bootstrap
 {
     [BepInPlugin("com.feel8.f8-skeleton-streamer",
-        "F8 Skeleton Streamer", "0.1.0")]
+        "F8 Skeleton Streamer", PluginVersion)]
     public sealed class ExporterPlugin : F8SkeletonStreamer.NonPortable.BaseUnityPlugin
     {
+        public const string PluginVersion = "0.2.0";
+
         private void Start()
         {
             Globals.Initialize(Logger);

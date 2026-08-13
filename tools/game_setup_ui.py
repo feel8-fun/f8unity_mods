@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import traceback
 from dataclasses import dataclass
@@ -26,8 +27,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import game_setup
-from common import ROOT, SetupConfig, SetupError, load_setup_config
+from f8unitymods_setup import game_setup
+from f8unitymods_setup.common import ROOT, SetupConfig, SetupError, load_setup_config
+
+
+logger = logging.getLogger(__name__)
 
 
 class JsonTranslator(QTranslator):
@@ -214,7 +218,15 @@ class MainWindow(QMainWindow):
             defaults = load_setup_config()
             self.prefer_local_configs.setChecked(defaults.prefer_local_configs)
             self.allow_remote_configs.setChecked(defaults.allow_remote_configs)
-        except Exception:
+        except Exception as exc:
+            self._append_log(
+                self.tr("[config] failed to load"),
+                {
+                    "type": type(exc).__name__,
+                    "message": str(exc),
+                    "traceback": traceback.format_exc(limit=20),
+                },
+            )
             self.prefer_local_configs.setChecked(True)
             self.allow_remote_configs.setChecked(True)
         self._append_log(self.tr("Ready"))
@@ -231,7 +243,8 @@ class MainWindow(QMainWindow):
                 continue
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                logger.exception("Failed to load translation file %s", path)
                 continue
             translations = payload.get("translations", {}) if isinstance(payload, dict) else {}
             if isinstance(translations, dict):
@@ -360,7 +373,14 @@ class MainWindow(QMainWindow):
             try:
                 config = load_setup_config()
             except Exception as e:
-                self._append_log(self.tr("[config] failed to load"), {"message": str(e)})
+                self._append_log(
+                    self.tr("[config] failed to load"),
+                    {
+                        "type": type(e).__name__,
+                        "message": str(e),
+                        "traceback": traceback.format_exc(limit=20),
+                    },
+                )
                 return
 
             options = self._collect_options()

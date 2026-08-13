@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from common import ROOT, _normalize_process_name, infer_exporter_key_from_profile_payload, print_json
+from f8unitymods_setup.common import ROOT, _normalize_process_name, infer_exporter_key_from_profile_payload, print_json
 
 
 def _sha256_file(path: Path) -> str:

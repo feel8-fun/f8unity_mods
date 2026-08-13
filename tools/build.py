@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import traceback
 import zipfile
 from pathlib import Path
 
-from common import (
+from f8unitymods_setup.common import (
     DEFAULT_EXPORTER_SPEC,
     EXIT_INSTALL_FAILED,
     LIVE2D_EXPORTER_SPEC,
@@ -53,7 +54,7 @@ def _resolve_backends(backend_key: str) -> list[str]:
 def cmd_build(args: argparse.Namespace) -> None:
     rows: list[dict[str, object]] = []
     for spec in _resolve_specs(args.exporter):
-        for backend in _resolve_backends(getattr(args, "backend", "mono")):
+        for backend in _resolve_backends(args.backend):
             project = spec.project_il2cpp_csproj if backend == "il2cpp" else spec.project_csproj
             run_command(["dotnet", "build", str(project), "-c", "Release"], cwd=ROOT)
             artifact_dir = ensure_exporter_artifacts(backend, spec=spec)
@@ -262,8 +263,16 @@ def main() -> int:
     except SetupError as e:
         print_json({"status": "error", "code": e.code, "message": e.message})
         return e.code
-    except Exception as e:  # pragma: no cover - defensive catch for CLI
-        print_json({"status": "error", "code": EXIT_INSTALL_FAILED, "message": str(e)})
+    except Exception as e:  # pragma: no cover - CLI safety boundary
+        print_json(
+            {
+                "status": "error",
+                "code": EXIT_INSTALL_FAILED,
+                "exceptionType": type(e).__name__,
+                "message": str(e),
+                "traceback": traceback.format_exc(),
+            }
+        )
         return EXIT_INSTALL_FAILED
 
 

@@ -1,9 +1,23 @@
 [project]
-name = "f8unitymods-tools"
-version = "0.1.0"
-description = "Tooling metadata for F8UnityMods scripts and UI packaging"
+name = "f8unitymods-setup"
+version = "0.2.0"
+description = "Typed Unity game detection and managed F8 exporter installation core"
 requires-python = ">=3.13"
-dependencies = [
-  "PySide6>=6.8.0",
-  "pyinstaller>=6.11.0",
-]
+dependencies = []
+
+[project.optional-dependencies]
+ui = ["PySide6>=6.8.0", "pyinstaller>=6.11.0"]
+
+[project.scripts]
+f8unitymods-setup = "f8unitymods_setup.game_setup:main"
+
+[build-system]
+requires = ["hatchling>=1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["f8unitymods_setup"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"configs" = "f8unitymods_setup/resources/configs"
+"tools/game_setup_config.json" = "f8unitymods_setup/resources/tools/game_setup_config.json"

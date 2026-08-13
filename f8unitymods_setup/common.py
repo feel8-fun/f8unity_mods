@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 
 EXIT_OK = 0
@@ -25,21 +25,36 @@ EXIT_BEPINEX_MISMATCH = 5
 
 USER_AGENT = "f8-skeleton-streamer-helper"
 
-_IS_FROZEN = bool(getattr(sys, "frozen", False))
+
+class _PyInstallerSys(Protocol):
+    frozen: bool
+    _MEIPASS: str
+
+
+_PACKAGED_SYS = cast(_PyInstallerSys, sys)
+try:
+    _IS_FROZEN = bool(_PACKAGED_SYS.frozen)
+except AttributeError:
+    _IS_FROZEN = False
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+_SOURCE_ROOT = _PACKAGE_ROOT.parent
+_PACKAGED_RESOURCE_ROOT = _PACKAGE_ROOT / "resources"
 
 
 def _detect_resource_root() -> Path:
     if _IS_FROZEN:
-        meipass = getattr(sys, "_MEIPASS", "")
-        if meipass:
-            return Path(meipass).resolve()
-    return Path(__file__).resolve().parents[1]
+        return Path(_PACKAGED_SYS._MEIPASS).resolve()
+    if (_PACKAGED_RESOURCE_ROOT / "configs").is_dir():
+        return _PACKAGED_RESOURCE_ROOT
+    return _SOURCE_ROOT
 
 
 def _detect_runtime_root() -> Path:
     if _IS_FROZEN:
         return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parents[1]
+    if (_SOURCE_ROOT / "configs").is_dir():
+        return _SOURCE_ROOT
+    return Path.cwd().resolve()
 
 
 ROOT = _detect_resource_root()
@@ -150,8 +165,8 @@ def _load_game_profile_catalog() -> dict[str, dict[str, Any]]:
     for path in sorted(configs_dir.glob("*.json")):
         try:
             payload = json.loads(path.read_text(encoding="utf-8-sig"))
-        except Exception:
-            continue
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Invalid bundled game profile {path}: {exc}") from exc
         if not isinstance(payload, dict):
             continue
 
@@ -212,6 +227,34 @@ class SetupConfig:
     asset_regex_overrides: dict[str, str]
 
 
+@dataclasses.dataclass(frozen=True)
+class BepInExInstallState:
+    installed: bool
+    partial: bool
+    variant: str
+    version: str
+    major: int | None
+    core_present: bool
+    bootstrap_present: bool
+    core_files: tuple[str, ...]
+    bootstrap_files: tuple[str, ...]
+    missing_components: tuple[str, ...]
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "installed": self.installed,
+            "partial": self.partial,
+            "variant": self.variant,
+            "version": self.version,
+            "major": self.major,
+            "corePresent": self.core_present,
+            "bootstrapPresent": self.bootstrap_present,
+            "coreFiles": list(self.core_files),
+            "bootstrapFiles": list(self.bootstrap_files),
+            "missingComponents": list(self.missing_components),
+        }
+
+
 @dataclasses.dataclass
 class DetectionResult:
     target_input: str
@@ -229,6 +272,12 @@ class DetectionResult:
     bepinex_variant: str
     bepinex_version: str
     bepinex_major: int | None
+    bepinex_partial: bool
+    bepinex_core_present: bool
+    bepinex_bootstrap_present: bool
+    bepinex_core_files: tuple[str, ...]
+    bepinex_bootstrap_files: tuple[str, ...]
+    bepinex_missing_components: tuple[str, ...]
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -246,6 +295,18 @@ class DetectionResult:
             "bepinex_variant": self.bepinex_variant,
             "bepinex_version": self.bepinex_version,
             "bepinex_major": self.bepinex_major,
+            "bepinex_status": {
+                "installed": self.has_bepinex,
+                "partial": self.bepinex_partial,
+                "variant": self.bepinex_variant,
+                "version": self.bepinex_version,
+                "major": self.bepinex_major,
+                "corePresent": self.bepinex_core_present,
+                "bootstrapPresent": self.bepinex_bootstrap_present,
+                "coreFiles": list(self.bepinex_core_files),
+                "bootstrapFiles": list(self.bepinex_bootstrap_files),
+                "missingComponents": list(self.bepinex_missing_components),
+            },
         }
 
 
@@ -315,13 +376,13 @@ def load_setup_config(path: Path | None = None) -> SetupConfig:
 
     cache_dir = Path(defaults["cache_dir"])
     if not cache_dir.is_absolute():
-        cache_base = RUNTIME_ROOT if _IS_FROZEN else ROOT
+        cache_base = ROOT if ROOT == _SOURCE_ROOT else RUNTIME_ROOT
         cache_dir = cache_base / cache_dir
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     remote_cache_dir = Path(defaults["remote_cache_dir"])
     if not remote_cache_dir.is_absolute():
-        cache_base = RUNTIME_ROOT if _IS_FROZEN else ROOT
+        cache_base = ROOT if ROOT == _SOURCE_ROOT else RUNTIME_ROOT
         remote_cache_dir = cache_base / remote_cache_dir
     remote_cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -412,7 +473,7 @@ def _build_detection_result_for_exe(target_input: str, game_root: Path, exe_path
     backend = detect_backend(game_root, data_dir)
     arch = detect_arch(exe_path)
     unity_version = detect_unity_version(data_dir)
-    has_bep, bep_variant, bep_ver, bep_major = detect_bepinex(game_root)
+    bepinex = inspect_bepinex(game_root)
     return DetectionResult(
         target_input=target_input,
         game_root=game_root,
@@ -425,10 +486,16 @@ def _build_detection_result_for_exe(target_input: str, game_root: Path, exe_path
         unity_version=unity_version,
         backend=backend,
         arch=arch,
-        has_bepinex=has_bep,
-        bepinex_variant=bep_variant,
-        bepinex_version=bep_ver,
-        bepinex_major=bep_major,
+        has_bepinex=bepinex.installed,
+        bepinex_variant=bepinex.variant,
+        bepinex_version=bepinex.version,
+        bepinex_major=bepinex.major,
+        bepinex_partial=bepinex.partial,
+        bepinex_core_present=bepinex.core_present,
+        bepinex_bootstrap_present=bepinex.bootstrap_present,
+        bepinex_core_files=bepinex.core_files,
+        bepinex_bootstrap_files=bepinex.bootstrap_files,
+        bepinex_missing_components=bepinex.missing_components,
     )
 
 
@@ -522,27 +589,35 @@ def detect_arch(exe_path: Path) -> str:
     return "unknown"
 
 
-def detect_bepinex(game_root: Path) -> tuple[bool, str, str, int | None]:
+def inspect_bepinex(game_root: Path) -> BepInExInstallState:
     core_dir = game_root / "BepInEx" / "core"
-    has_core = core_dir.is_dir() and any(core_dir.glob("BepInEx*.dll"))
-    has_doorstop = (game_root / "doorstop_config.ini").exists() or (game_root / "winhttp.dll").exists()
-    has_bepinex = has_core or has_doorstop
-    if not has_bepinex:
-        return False, "none", "none", None
+    core_paths = tuple(sorted(path for path in core_dir.glob("BepInEx*.dll") if path.is_file()))
+    mono_v5_core = core_dir / "BepInEx.dll"
+    mono_v6_core = core_dir / "BepInEx.Unity.Mono.dll"
+    il2cpp_core = core_dir / "BepInEx.Unity.IL2CPP.dll"
+    doorstop_config = game_root / "doorstop_config.ini"
+    winhttp_proxy = game_root / "winhttp.dll"
+    bootstrap_paths = tuple(path for path in (doorstop_config, winhttp_proxy) if path.is_file())
+    core_present = mono_v5_core.is_file() or mono_v6_core.is_file() or il2cpp_core.is_file()
+    bootstrap_present = doorstop_config.is_file() and winhttp_proxy.is_file()
+    has_evidence = (game_root / "BepInEx").exists() or bool(bootstrap_paths)
+    installed = core_present and bootstrap_present
+    partial = has_evidence and not installed
 
     variant = "unknown"
-    if (core_dir / "BepInEx.Unity.IL2CPP.dll").exists():
+    if il2cpp_core.is_file():
         variant = "il2cpp"
-    elif (core_dir / "BepInEx.Unity.Mono.dll").exists() or (core_dir / "BepInEx.dll").exists():
+    elif mono_v6_core.is_file() or mono_v5_core.is_file():
         variant = "mono"
 
     version = "unknown"
-    version_source = (
-        core_dir / "BepInEx.Unity.IL2CPP.dll"
-        if (core_dir / "BepInEx.Unity.IL2CPP.dll").exists()
-        else core_dir / "BepInEx.dll"
-    )
-    if version_source.exists():
+    if il2cpp_core.is_file():
+        version_source = il2cpp_core
+    elif mono_v6_core.is_file():
+        version_source = mono_v6_core
+    else:
+        version_source = mono_v5_core
+    if version_source.is_file():
         version = _read_windows_file_version(version_source)
 
     major = None
@@ -557,7 +632,36 @@ def detect_bepinex(game_root: Path) -> tuple[bool, str, str, int | None]:
         elif variant == "mono":
             major = 5
 
-    return True, variant, version, major
+    missing_components: list[str] = []
+    if not core_present:
+        missing_components.append("BepInEx/core/BepInEx*.dll")
+    if not doorstop_config.is_file():
+        missing_components.append("doorstop_config.ini")
+    if not winhttp_proxy.is_file():
+        missing_components.append("winhttp.dll")
+
+    if not has_evidence:
+        variant = "none"
+        version = "none"
+        major = None
+
+    return BepInExInstallState(
+        installed=installed,
+        partial=partial,
+        variant=variant,
+        version=version,
+        major=major,
+        core_present=core_present,
+        bootstrap_present=bootstrap_present,
+        core_files=tuple(str(path) for path in core_paths),
+        bootstrap_files=tuple(str(path) for path in bootstrap_paths),
+        missing_components=tuple(missing_components),
+    )
+
+
+def detect_bepinex(game_root: Path) -> tuple[bool, str, str, int | None]:
+    state = inspect_bepinex(game_root)
+    return state.installed, state.variant, state.version, state.major
 
 
 def _read_windows_file_version(path: Path) -> str:
@@ -572,7 +676,8 @@ def _read_windows_file_version(path: Path) -> str:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         out = (result.stdout or "").strip()
         return out if out else "unknown"
-    except Exception:
+    except OSError as exc:
+        log(f"warning: failed to read Windows file version for {path}: {exc}")
         return "unknown"
 
 
@@ -683,7 +788,8 @@ def _normalize_bool(value: Any, default: bool) -> bool:
 def _read_json_file(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except Exception:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        log(f"warning: failed to read JSON file {path}: {exc}")
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -698,7 +804,8 @@ def _local_config_dirs() -> list[Path]:
     for candidate in candidates:
         try:
             resolved = candidate.resolve()
-        except Exception:
+        except (OSError, RuntimeError) as exc:
+            log(f"warning: failed to resolve config directory {candidate}: {exc}")
             resolved = candidate
         if resolved in seen or not candidate.is_dir():
             continue
@@ -1115,7 +1222,7 @@ def download_with_retries(
                 raise SetupError(EXIT_DOWNLOAD_FAILED, f"downloaded empty file: {url}")
             tmp.replace(dst)
             return dst
-        except Exception as e:
+        except (OSError, ValueError, SetupError) as e:
             last_error = e
             delay = 2**attempt
             log(f"download failed ({attempt + 1}/{retries}): {e}; retrying in {delay}s")
@@ -1319,7 +1426,8 @@ def _is_managed_profile(path: Path, spec: ExporterSpec | None = None) -> bool:
     exporter = resolve_exporter_spec(spec)
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except Exception:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        log(f"warning: preserving unreadable profile {path}: {exc}")
         return False
     return (
         isinstance(payload, dict)

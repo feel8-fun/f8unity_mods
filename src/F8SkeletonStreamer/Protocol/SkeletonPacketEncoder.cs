@@ -8,7 +8,7 @@ namespace F8SkeletonStreamer.Protocol
 {
     internal sealed class SkeletonPacketEncoder
     {
-        private const ushort ExtVersion = 1;
+        private const ushort ExtVersion = 2;
         private static readonly byte[] TrailerMagic = Encoding.ASCII.GetBytes("LMEX");
         private static readonly byte[] AnimMagic = Encoding.ASCII.GetBytes("ANIM");
         private static readonly Encoding Utf8 = Encoding.UTF8;
@@ -112,6 +112,10 @@ namespace F8SkeletonStreamer.Protocol
             writer.Write(chunkCount);
             writer.Write(frame.Bones != null ? frame.Bones.Length : 0);
             writer.Write(frame.CharacterId);
+            WriteAlignedString(writer, frame.ProfileId ?? string.Empty);
+            WriteAlignedString(writer, frame.Role ?? string.Empty);
+            writer.Write(frame.RoleIndex);
+            WriteAlignedString(writer, frame.ExporterVersion ?? string.Empty);
 
             if (!frame.HasAnimationContext)
             {
@@ -157,12 +161,16 @@ namespace F8SkeletonStreamer.Protocol
         private static int GetTrailerSize(CharacterFrame frame)
         {
             int fixedTrailer = 4 + 2 + 8 + 4 + 4 + 4 + 4;
+            int offset = fixedTrailer;
+            offset += GetAlignedStringSize(offset, frame.ProfileId ?? string.Empty);
+            offset += GetAlignedStringSize(offset, frame.Role ?? string.Empty);
+            offset += 4;
+            offset += GetAlignedStringSize(offset, frame.ExporterVersion ?? string.Empty);
             if (!frame.HasAnimationContext)
             {
-                return fixedTrailer;
+                return offset;
             }
 
-            int offset = fixedTrailer;
             offset += 4;
             offset += 4;
             offset += 4;

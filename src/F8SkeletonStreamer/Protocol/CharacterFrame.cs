@@ -8,6 +8,10 @@ namespace F8SkeletonStreamer.Protocol
         public long TimestampMs;
         public int CharacterId;
         public string CharacterName;
+        public string ProfileId;
+        public string Role;
+        public int RoleIndex;
+        public string ExporterVersion;
         public BoneSample[] Bones;
         public bool HasAnimationContext;
         public float NormalizedTime;

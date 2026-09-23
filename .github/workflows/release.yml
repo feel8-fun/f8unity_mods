@@ -39,9 +39,8 @@ jobs:
       - name: Package release zips
         run: python tools/build.py package-release --exporter both --backend both
 
-      - name: Build GameSetupUI.exe
-        shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+      - name: Build setup wheel
+        run: pixi run setup-wheel
 
       - name: Generate manifests
         run: python tools/release_manifest.py generate --configs-dir configs --output-dir dist/release --release-repo ${{ github.repository }} --release-tag ${{ github.ref_name }} --commit ${{ github.sha }} --config-base-url https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/configs --include-config-pack
@@ -50,7 +49,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/GameSetupUI.exe
+            dist/setup/*.whl
             dist/release/F8SkeletonStreamer-mono.zip
             dist/release/F8SkeletonStreamer-il2cpp.zip
             dist/release/F8Live2DStreamer-mono.zip

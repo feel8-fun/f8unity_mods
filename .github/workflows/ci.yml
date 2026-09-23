@@ -41,9 +41,8 @@ jobs:
       - name: Package release zips
         run: python tools/build.py package-release --exporter both --backend both
 
-      - name: Build GameSetupUI.exe
-        shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+      - name: Build setup wheel
+        run: pixi run setup-wheel
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -51,4 +50,4 @@ jobs:
           name: f8unitymods-build-artifacts
           path: |
             dist/release/*
-            dist/GameSetupUI.exe
+            dist/setup/*.whl

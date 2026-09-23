@@ -10,7 +10,7 @@ This repository now has a standalone toolchain for `F8SkeletonStreamer`:
 
 `lovemachine_src/` is treated as legacy/reference source and is not part of the new solution.
 
-## Root pixi environment for Game Setup UI
+## Root Pixi environment
 
 Use repository root as the single pixi project:
 
@@ -18,16 +18,11 @@ Use repository root as the single pixi project:
 pixi install
 ```
 
-Launch UI directly:
+Run the typed setup CLI directly:
 
 ```bash
-pixi run ui
-```
-
-Build onefile exe:
-
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+pixi run setup-detect -- <game-path>
+pixi run setup-diag -- <game-path>
 ```
 
 ## Build

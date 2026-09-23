@@ -10,7 +10,7 @@
 
 The release workflow publishes:
 
-- `GameSetupUI.exe`
+- `f8unitymods_setup` Python wheel
 - `F8SkeletonStreamer-mono.zip`
 - `F8SkeletonStreamer-il2cpp.zip`
 - `F8Live2DStreamer-mono.zip`

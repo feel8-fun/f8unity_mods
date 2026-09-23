@@ -6,8 +6,6 @@ platforms = ["win-64"]
 
 [dependencies]
 python = "3.13.*"
-pyside6 = ">=6.8.0"
-pyinstaller = ">=6.11.0"
 
 [pypi-dependencies]
 build = ">=1.2.2"
@@ -23,7 +21,5 @@ setup-install = "python -m f8unitymods_setup.game_setup install"
 config-validate = "python -m tools.release_manifest validate --configs-dir configs"
 setup-wheel = "python -m build --wheel --outdir dist/setup"
 protocol-fixture = "dotnet run --project tests/ProtocolFixtureGenerator/ProtocolFixtureGenerator.csproj --"
-ui = "python -m tools.game_setup_ui"
-ui-build = "pyinstaller tools/ui/game_setup_ui.spec --noconfirm --clean --distpath tools/ui/dist --workpath tools/ui/build"
-pycheck = "python -m py_compile f8unitymods_setup/common.py f8unitymods_setup/game_setup.py tools/build.py tools/build_live2d.py tools/game_setup_ui.py tools/release_manifest.py"
+pycheck = "python -m py_compile f8unitymods_setup/common.py f8unitymods_setup/game_setup.py tools/build.py tools/build_live2d.py tools/release_manifest.py"
 test = "python -m unittest discover -s tests -p 'test_*.py'"

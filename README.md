@@ -10,8 +10,8 @@ The project is inspired by [LoveMachine](https://codeberg.org/Sauceke/LoveMachin
   Mono and IL2CPP BepInEx plugin for scene-hook driven skeleton capture and UDP streaming.
 - `F8Live2DStreamer`
   Mono and IL2CPP BepInEx plugin for Live2D / drawable discovery and UDP streaming.
-- `GameSetupUI`
-  GUI helper for installing the correct BepInEx variant, the selected exporter, and optional utilities such as RUE, CUE, ConfigurationManager, and UUD.
+- `f8unitymods_setup`
+  Typed detection and installation core used by Feel8 Web Studio and the command line.
 - `configs/`
   Game profile templates used for process detection, hook rules, capture expressions, and keypoint binding defaults.
 
@@ -64,16 +64,11 @@ Build release-shaped plugin assets:
 pixi run release-package
 ```
 
-Launch the setup UI:
+Detect and inspect a game installation:
 
 ```bash
-pixi run ui
-```
-
-Build the standalone Windows installer:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/ui/build_exe.ps1
+pixi run setup-detect -- <game-path>
+pixi run setup-diag -- <game-path>
 ```
 
 Validate config templates:
@@ -88,7 +83,7 @@ GitHub Releases are the main distribution channel.
 
 Published release assets are split by responsibility:
 
-- `GameSetupUI.exe`
+- `f8unitymods_setup` Python wheel
 - `F8SkeletonStreamer-mono.zip`
 - `F8SkeletonStreamer-il2cpp.zip`
 - `F8Live2DStreamer-mono.zip`
@@ -97,7 +92,7 @@ Published release assets are split by responsibility:
 - `release-manifest.json`
 - optional `configs-pack.zip`
 
-`GameSetupUI.exe` is the main end-user download. It can fetch the latest exporter release assets from GitHub and resolve config profiles through a manifest plus raw JSON files, while still preferring local bundled configs during development.
+Feel8 Web Studio provides the end-user detect, preview, and confirmed-install workflow. The setup package remains usable as a headless CLI and resolves config profiles through the same manifest and raw JSON files.
 
 ## CI / Automation
 

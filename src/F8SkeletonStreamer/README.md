@@ -5,7 +5,7 @@ Independent BepInEx (Mono) plugin for real-time skeleton export over UDP.
 Project toolchain:
 
 - Solution: `F8UnityMods.sln`
-- Build/package: `python tools/build.py build|package`
+- Build/package: `pixi run --locked python -m tools.build build|package`
 - Auto setup helper: `python tools/game_setup.py detect|diagnose|install`
 - Setup guide: `docs/F8UnityMods.Setup.md`
 

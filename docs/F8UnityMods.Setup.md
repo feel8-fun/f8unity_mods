@@ -34,7 +34,7 @@ pixi run build
 Equivalent CLI:
 
 ```bash
-python tools/build.py build --exporter both
+pixi run --locked python -m tools.build build --exporter both
 ```
 
 ## Package
@@ -51,10 +51,10 @@ Output zips:
 Single-exporter examples:
 
 ```bash
-python tools/build.py build --exporter skeleton
-python tools/build.py build --exporter live2d
-python tools/build.py package --exporter skeleton
-python tools/build.py package --exporter live2d
+pixi run --locked python -m tools.build build --exporter skeleton
+pixi run --locked python -m tools.build build --exporter live2d
+pixi run --locked python -m tools.build package --exporter skeleton
+pixi run --locked python -m tools.build package --exporter live2d
 ```
 
 ## Local install into a game

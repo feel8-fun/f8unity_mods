@@ -6,7 +6,14 @@ from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
-from f8unitymods_setup.common import DetectionResult, SetupConfig, detect_bepinex, inspect_bepinex
+from f8unitymods_setup.models import (
+    DetectionResult,
+    SetupConfig,
+)
+from f8unitymods_setup.detection import (
+    detect_bepinex,
+    inspect_bepinex,
+)
 from f8unitymods_setup.game_setup import _build_install_plan, run_install
 
 
@@ -117,7 +124,7 @@ class BepInExDetectionTest(unittest.TestCase):
         (self.game_root / "doorstop_config.ini").write_text("enabled=true\n", encoding="utf-8")
         (self.game_root / "winhttp.dll").write_bytes(b"proxy")
 
-        with mock.patch("f8unitymods_setup.common._read_windows_file_version", return_value="5.4.23.3"):
+        with mock.patch("f8unitymods_setup.detection._read_windows_file_version", return_value="5.4.23.3"):
             state = inspect_bepinex(self.game_root)
 
         self.assertTrue(state.installed)
@@ -134,7 +141,7 @@ class BepInExDetectionTest(unittest.TestCase):
         (core_dir / "BepInEx.Unity.IL2CPP.dll").write_bytes(b"core")
         (self.game_root / "doorstop_config.ini").write_text("enabled=true\n", encoding="utf-8")
 
-        with mock.patch("f8unitymods_setup.common._read_windows_file_version", return_value="6.0.0"):
+        with mock.patch("f8unitymods_setup.detection._read_windows_file_version", return_value="6.0.0"):
             state = inspect_bepinex(self.game_root)
 
         self.assertFalse(state.installed)

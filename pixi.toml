@@ -8,9 +8,11 @@ platforms = ["win-64"]
 python = "3.13.*"
 
 [pypi-dependencies]
+f8pysdk = {path = ".sdk/python", editable = false}
 build = ">=1.2.2"
 
 [tasks]
+udp-dump = "python -m tools.udp_dump"
 build = "python -m tools.build build --exporter both"
 package = "python -m tools.build package --exporter both"
 release-package = "python -m tools.build package-release --exporter both --backend both"
@@ -21,5 +23,5 @@ setup-install = "python -m f8unitymods_setup.game_setup install"
 config-validate = "python -m tools.release_manifest validate --configs-dir configs"
 setup-wheel = "python -m build --wheel --outdir dist/setup"
 protocol-fixture = "dotnet run --project tests/ProtocolFixtureGenerator/ProtocolFixtureGenerator.csproj --"
-pycheck = "python -m py_compile f8unitymods_setup/common.py f8unitymods_setup/game_setup.py tools/build.py tools/build_live2d.py tools/release_manifest.py"
+pycheck = "python -m py_compile f8unitymods_setup/paths.py f8unitymods_setup/models.py f8unitymods_setup/commands.py f8unitymods_setup/configuration.py f8unitymods_setup/detection.py f8unitymods_setup/profiles.py f8unitymods_setup/artifacts.py f8unitymods_setup/installation.py f8unitymods_setup/game_setup.py tools/build.py tools/build_live2d.py tools/release_manifest.py"
 test = "python -m unittest discover -s tests -p 'test_*.py'"

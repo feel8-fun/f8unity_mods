@@ -10,32 +10,32 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from .common import (
+from .paths import (
     EXIT_BEPINEX_MISMATCH,
     EXIT_DETECT_FAILED,
-    EXIT_DOWNLOAD_FAILED,
     EXIT_INSTALL_FAILED,
+)
+from .models import (
     DetectionResult,
     SetupConfig,
     SetupError,
+    infer_exporter_key_from_profile_payload,
+    resolve_exporter_spec_by_key,
+)
+from .installation import (
     backup_existing_install,
+    copy_exporter_plugin,
+    install_single_profile,
+    install_exporter_config,
+    remove_existing_install,
+)
+from .artifacts import (
     bepinex_variant_matches_backend,
     build_cached_asset_path,
-    copy_exporter_plugin,
-    detect_game,
     download_self_release_asset,
-    github_release,
     ensure_exporter_artifacts,
     extract_zip,
     github_latest_release,
-    infer_exporter_key_from_profile_payload,
-    install_single_profile,
-    install_exporter_config,
-    load_setup_config,
-    log,
-    print_json,
-    remove_existing_install,
-    resolve_exporter_spec_by_key,
     select_cue_asset,
     select_config_manager_asset,
     select_bepinex_be_il2cpp_asset,
@@ -43,6 +43,16 @@ from .common import (
     select_rue_asset,
     select_universal_unity_demosaics_asset,
     download_with_retries,
+)
+from .detection import (
+    detect_game,
+)
+from .configuration import (
+    load_setup_config,
+)
+from .commands import (
+    log,
+    print_json,
 )
 
 

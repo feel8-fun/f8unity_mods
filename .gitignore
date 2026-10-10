@@ -369,3 +369,7 @@ dist/
 # PyInstaller temp artifacts for game_setup_ui
 build/game_setup_ui/
 tools/ui/build/game_setup_ui/
+
+.sdk/
+.pixi/
+.pytest_cache/

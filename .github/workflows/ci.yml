@@ -14,6 +14,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout shared SDK
+        uses: actions/checkout@v5
+        with:
+          repository: feel8-fun/f8sdk
+          ref: a977f137b8280db8566bd52a62a1805092725fb9
+          path: .sdk
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

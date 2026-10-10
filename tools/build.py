@@ -6,17 +6,27 @@ import traceback
 import zipfile
 from pathlib import Path
 
-from f8unitymods_setup.common import (
+from f8unitymods_setup.models import (
     DEFAULT_EXPORTER_SPEC,
-    EXIT_INSTALL_FAILED,
     LIVE2D_EXPORTER_SPEC,
-    ROOT,
     ExporterSpec,
     SetupError,
+)
+from f8unitymods_setup.paths import (
+    EXIT_INSTALL_FAILED,
+    ROOT,
+)
+from f8unitymods_setup.installation import (
     copy_exporter_plugin,
+)
+from f8unitymods_setup.detection import (
     detect_game,
+)
+from f8unitymods_setup.artifacts import (
     ensure_exporter_artifacts,
     find_exporter_dll,
+)
+from f8unitymods_setup.commands import (
     print_json,
     run_command,
 )
